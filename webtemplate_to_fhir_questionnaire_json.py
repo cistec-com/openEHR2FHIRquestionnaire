@@ -4,6 +4,9 @@
 import json
 import sys
 from typing import Dict, Any, List, Optional
+import re
+import os
+from datetime import datetime as dt, timedelta
 
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
@@ -77,10 +80,18 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
     Converts one node from the web template into a FHIR Questionnaire 'item' dict,
     picking the localized text in the chosen language if possible.
     """
+
+        
+    # Exclude context section completely
+    # currently done below via exclusion of all group nodes without children
+    #if node.get("id") == "context" and node.get("rmType") == "EVENT_CONTEXT":
+    #    return None
+
     # Exclude items if "inContext" == true
+    # (TODO): Possibly keep some exceptions if needed
     if node.get("inContext") is True:
-        # Possibly keep some exceptions if needed
-        return None
+        if node.get("rmType") != "DV_DATE_TIME" or node.get("aqlPath") == "/context/start_time":
+            return None
 
     fhir_item = {}
 
@@ -91,7 +102,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
     min_occurs = node.get("min", 0)
     max_occurs = node.get("max", 1)
     fhir_item["required"] = (min_occurs >= 1)
-    fhir_item["repeats"] = (max_occurs != 1)
+    fhir_item["repeats"] = (max_occurs >= 2)
 
     # Use localized names/descriptions for item text, if available
     item_text = get_localized_name(node, preferred_lang)
@@ -110,9 +121,13 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
                 subitems.append(sub_item)
         if subitems:
             fhir_item["item"] = subitems
+        ### remove group nodes without children (ie context)
+        else:
+            return None 
+
     else:
         rm_type = (node.get("rmType") or "").upper()
-        if rm_type in ["DV_CODED_TEXT", "DV_TEXT"]:
+        if rm_type in ["DV_CODED_TEXT"]:
             # read the "inputs" to see if there's a "listOpen" or "defaultValue"
             item_inputs = node.get("inputs", [])
             # We'll pick up "listOpen" from that
@@ -130,6 +145,8 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
             if answer_options:
                 fhir_item["answerOption"] = answer_options
 
+        elif rm_type == "DV_TEXT":
+            fhir_item["type"] = "string"
 
         elif rm_type == "DV_QUANTITY":
             fhir_item["type"] = "quantity"
@@ -191,7 +208,7 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
                             "code": code_val,
                             "display": label
                         },
-                        "initialSelected": "true",
+                        "initialSelected": True,
 
                     })
                 else:
@@ -209,6 +226,7 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
     """
     Use the SDC extension 'questionnaire-unitOption' for enumerated units.
     """
+
     inputs = node.get("inputs", [])
     global_min = None
     global_max = None
@@ -328,16 +346,23 @@ if __name__ == "__main__":
     Example usage:
         python3 webtemplate_to_fhir_questionnaire_json.py input_webtemplate.json out_en.json out_de.json
     """
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print("Usage: python3 webtemplate_to_fhir_questionnaire_json.py <input.json> <output> ")
         sys.exit(1)
 
-    # TODO: put actual code back
-    #input_path = sys.argv[1]
-    #input_path = "../templates_testing/cistec.openehr.body_weight_new.v1.json"
-    input_path = "../templates_testing/report_status_internal_medicine.v1.json"
-    out_en = f"{sys.argv[2]}_en.json"
-    out_de = f"{sys.argv[2]}_de.json"
+    # (TODO): put actual code back
+    input_path = sys.argv[1]
+    pattern = r"cistec\.openehr\.(\w+)"
+    template_name = re.search(pattern, sys.argv[1]).group(1)
+    #input_path = "../exports/cistec.openehr.body_weight.v1.json"
+    #input_path = "../exports/report_status_internal_medicine.v1.json"
+    output_dir = "../outputs/questionnaires"
+
+    timestamp = dt.now().strftime("%Y%m%d_%H%M")
+    #out_en = os.path.join(output_dir, f"{sys.argv[2]}_EN.json")
+    #out_de = os.path.join(output_dir, f"{sys.argv[2]}_DE.json")
+    out_en = os.path.join(output_dir, f"{template_name}_EN_{timestamp}.json")
+    out_de = os.path.join(output_dir, f"{template_name}_DE_{timestamp}.json")
 
     # Convert for English
     convert_webtemplate_to_fhir_questionnaire_json(input_path, out_en, preferred_lang="en")
