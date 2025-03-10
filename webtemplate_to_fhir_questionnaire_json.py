@@ -3,19 +3,22 @@
 
 import json
 import sys
-from typing import Dict, Any, List, Optional
 import re
 import os
-from datetime import datetime as dt, timedelta
+import argparse
+from datetime import datetime as dt
+from typing import Dict, Any, List, Optional
 
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
     output_file_path: str,
-    preferred_lang: str = "en"
+    preferred_lang: str = "en",
+    fhir_version: str = "R4"
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
-    in the specified language (preferred_lang), and writes the result to disk.
+    in the specified language (preferred_lang) and for the specified fhir_version,
+    then writes the result to disk.
     """
     # 1) Read the web template JSON
     with open(input_file_path, "r", encoding="utf-8") as f:
@@ -24,18 +27,14 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     template_id = web_template.get("templateId", "unknown-web-template")
     root_node = web_template["tree"]
 
-    # Gather the "name" or localized name for the top-level
-    # e.g. web_template["tree"]["localizedNames"] = {"en": "Body weight", "de": "Körpergewicht"}
+    # Gather the top-level name and description in the chosen language
     top_level_name = get_localized_name(root_node, preferred_lang)
     top_level_description = get_localized_description(root_node, preferred_lang)
 
-    # 2) Build the FHIR Questionnaire in the selected language
+    # 2) Build the FHIR Questionnaire
     questionnaire = {
         "resourceType": "Questionnaire",
-        "language": preferred_lang,  # Indicate resource language
-        # TODO: fix url, as language gets put after version number, example: 
-        # "questionnaire": "http://example.org/fhir/Questionnaire/cistec.openehr.body_weight.v1-en|1.0",
-
+        "language": preferred_lang,
         "url": f"http://example.org/fhir/Questionnaire/{template_id}-{preferred_lang}",
         "identifier": [
             {
@@ -52,6 +51,19 @@ def convert_webtemplate_to_fhir_questionnaire_json(
         "description": top_level_description or "Auto-generated from openEHR web template to FHIR Questionnaire",
         "item": []
     }
+
+    # If you wish to record which FHIR version is being used, you can set a meta.profile or similar:
+    if fhir_version == "R4":
+        questionnaire["meta"] = {
+            "profile": ["http://hl7.org/fhir/R4/StructureDefinition/Questionnaire"]
+        }
+    elif fhir_version == "R5":
+        questionnaire["meta"] = {
+            "profile": ["http://hl7.org/fhir/R5/StructureDefinition/Questionnaire"]
+        }
+    else:
+        # This is just for safety; the argparse choices=["R4","R5"] should prevent this
+        raise ValueError("Unsupported FHIR version. Must be R4 or R5.")
 
     # Create a top-level 'group' item
     composition_item = {
@@ -71,8 +83,8 @@ def convert_webtemplate_to_fhir_questionnaire_json(
 
     # 4) Write output
     with open(output_file_path, "w", encoding="utf-8") as out:
-        json.dump(questionnaire, out, indent=2, ensure_ascii=False)  # ensure_ascii=False helps keep UTF-8
-    print(f"FHIR Questionnaire (JSON) for lang='{preferred_lang}' written to {output_file_path}")
+        json.dump(questionnaire, out, indent=2, ensure_ascii=False)
+    print(f"FHIR Questionnaire for lang='{preferred_lang}', FHIR={fhir_version} written to {output_file_path}")
 
 
 def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optional[Dict[str, Any]]:
@@ -81,20 +93,13 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
     picking the localized text in the chosen language if possible.
     """
 
-        
-    # Exclude context section completely
-    # currently done below via exclusion of all group nodes without children
-    #if node.get("id") == "context" and node.get("rmType") == "EVENT_CONTEXT":
-    #    return None
-
-    # Exclude items if "inContext" == true
-    # (TODO): Possibly keep some exceptions if needed
+    # Exclude items that are purely contextual, if appropriate:
     if node.get("inContext") is True:
+        # Exclude most context items except certain date/time?
         if node.get("rmType") != "DV_DATE_TIME" or node.get("aqlPath") == "/context/start_time":
             return None
 
     fhir_item = {}
-
     link_id = node.get("nodeId") or node.get("id") or "unknown"
     fhir_item["linkId"] = link_id
 
@@ -121,61 +126,52 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
                 subitems.append(sub_item)
         if subitems:
             fhir_item["item"] = subitems
-        ### remove group nodes without children (ie context)
         else:
+            # remove group nodes without children
             return None 
-
     else:
         rm_type = (node.get("rmType") or "").upper()
-        if rm_type in ["DV_CODED_TEXT"]:
-            # read the "inputs" to see if there's a "listOpen" or "defaultValue"
-            item_inputs = node.get("inputs", [])
-            # We'll pick up "listOpen" from that
-            list_open = find_list_open(item_inputs)  # see below
-            # => set item.type to "open-choice" if true, else "choice"
-            fhir_item["type"] = "open-choice" if list_open else "choice"
-
-            # Check for defaultValue => set item.initial or add extension
-            default_val = find_default_value(item_inputs)  # see below
-            if default_val:
-                answer_options = build_answer_options(node, preferred_lang, default_val)
-            else:
-                answer_options = build_answer_options(node, preferred_lang, None)
-
+        if rm_type == "DV_CODED_TEXT":
+            fhir_item["type"] = "open-choice" if find_list_open(node.get("inputs", [])) else "choice"
+            default_val = find_default_value(node.get("inputs", []))
+            answer_options = build_answer_options(node, preferred_lang, default_val)
             if answer_options:
                 fhir_item["answerOption"] = answer_options
-
         elif rm_type == "DV_TEXT":
             fhir_item["type"] = "string"
-
         elif rm_type == "DV_QUANTITY":
             fhir_item["type"] = "quantity"
             build_quantity_with_unit_options(fhir_item, node)
         else:
-            # other types: dateTime, string, etc.
+            # other types: dateTime, integer, etc.
             fhir_item["type"] = map_rmtype_to_fhir_type(rm_type)
-        '''
-        rm_type = (node.get("rmType") or "").upper()
-        fhir_item["type"] = map_rmtype_to_fhir_type(rm_type)
-        # TODO: "open-choice"
-        #if fhir_item["type"] == "DV_CODED_TEXT" and node.get("inputs")
-
-        # If coded text => try building answerOption, or referencing a ValueSet, etc.
-        if fhir_item["type"] in ["choice", "open-choice"]:
-            answer_options = build_answer_options(node, preferred_lang)
-            if answer_options:
-                fhir_item["answerOption"] = answer_options
-        elif fhir_item["type"] == "quantity":
-            build_quantity_with_unit_options(fhir_item, node)
-        '''
 
     return fhir_item
 
 
-def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_value: None) -> List[Dict[str, Any]]:
+def map_rmtype_to_fhir_type(rm_type: str) -> str:
+    rm_type = rm_type.upper()
+    if rm_type in ["COMPOSITION", "CLUSTER", "SECTION", "EVENT_CONTEXT"]:
+        return "group"
+    elif rm_type == "DV_CODED_TEXT":
+        return "choice"
+    elif rm_type == "DV_QUANTITY":
+        return "quantity"
+    elif rm_type == "DV_DATE_TIME":
+        return "dateTime"
+    elif rm_type == "DV_DATE":
+        return "date"
+    elif rm_type in ["DV_TIME", "DV_DURATION"]:
+        return "time"
+    elif rm_type == "DV_COUNT":
+        return "integer"
+    else:
+        return "string"
+
+
+def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_value: Optional[str]) -> List[Dict[str, Any]]:
     """
-    Look for coded input lists in 'node["inputs"]' and produce FHIR answerOption entries,
-    with text possibly in the chosen language.
+    Look for coded input lists in node["inputs"] and produce FHIR answerOption entries.
     """
     options = []
     inputs = node.get("inputs", [])
@@ -183,42 +179,33 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
         if "list" in input_def:
             for option in input_def["list"]:
                 code_val = option.get("value", "")
-                # Try picking a label in the desired language if present, else fallback
-                label = option.get("label", "")  # Might be something like "label": {"en": "...", "de": "..."}
-                # If 'label' is itself localized, you can fetch label for 'preferred_lang'
+                label = option.get("label", "")
+                # If label is dict, try to fetch the preferred language or fallback
                 if isinstance(label, dict) and preferred_lang in label:
                     label = label[preferred_lang]
                 elif isinstance(label, dict):
-                    # fallback to any known language
                     label = next(iter(label.values()))
 
-                # Decide system (Snomed vs. dummy code, etc.)
                 system = "http://cistec-internal-dummy.ch/noCodes"
-                # example logic
                 terminology = input_def.get("terminology")
                 if terminology:
                     system = terminology
                 elif code_val.startswith("at"):
                     system = "http://cistec-internal-dummy.ch/atCodes"
 
+                coding_dict = {
+                    "system": system,
+                    "code": code_val,
+                    "display": label
+                }
+                # If this code is the default
                 if default_value and default_value == label:
                     options.append({
-                        "valueCoding": {
-                            "system": system,
-                            "code": code_val,
-                            "display": label
-                        },
-                        "initialSelected": True,
-
+                        "valueCoding": coding_dict,
+                        "initialSelected": True
                     })
                 else:
-                    options.append({
-                        "valueCoding": {
-                            "system": system,
-                            "code": code_val,
-                            "display": label
-                        }
-                    })
+                    options.append({"valueCoding": coding_dict})
     return options
 
 
@@ -226,7 +213,6 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
     """
     Use the SDC extension 'questionnaire-unitOption' for enumerated units.
     """
-
     inputs = node.get("inputs", [])
     global_min = None
     global_max = None
@@ -237,9 +223,7 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
             for unit_option in input_def["list"]:
                 code_val = unit_option.get("value", "")
                 label = unit_option.get("label", code_val)
-                # If label might be localized, handle it similarly to above
                 if isinstance(label, dict):
-                    # pick your language or fallback
                     label = next(iter(label.values()))
 
                 # SDC extension for enumerating unit choices
@@ -284,56 +268,34 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
 
 def get_localized_name(node: Dict[str, Any], preferred_lang: str) -> str:
     """
-    Return the name for node in the desired language, if available in 'localizedNames'.
-    Otherwise return None or an empty string.
+    Return the name for node in the desired language if available in 'localizedNames'.
     """
     loc_names = node.get("localizedNames", {})
     return loc_names.get(preferred_lang, "")
 
+
 def get_localized_description(node: Dict[str, Any], preferred_lang: str) -> str:
     """
-    Return the description for node in the desired language, if available in 'localizedDescriptions'.
-    Otherwise return None or an empty string.
+    Return the description for node in the desired language if available in 'localizedDescriptions'.
     """
     loc_descriptions = node.get("localizedDescriptions", {})
     return loc_descriptions.get(preferred_lang, "")
 
 
-def map_rmtype_to_fhir_type(rm_type: str) -> str:
-    rm_type = rm_type.upper()
-    if rm_type in ["COMPOSITION", "CLUSTER", "SECTION", "EVENT_CONTEXT"]:
-        return "group"
-    elif rm_type == "DV_CODED_TEXT":
-        return "choice"
-    elif rm_type == "DV_QUANTITY":
-        return "quantity"
-    elif rm_type == "DV_DATE_TIME":
-        return "dateTime"
-    elif rm_type == "DV_DATE":
-        return "date"
-    elif rm_type in ["DV_TIME", "DV_DURATION"]:
-        return "time"
-    elif rm_type == "DV_COUNT":
-        return "integer"
-    else:
-        return "string"
-    
 def find_list_open(inputs: List[Dict[str, Any]]) -> bool:
     """
-    Return true if any input_def has 'listOpen': true
+    Return true if any input_def with 'list' indicates 'listOpen': true
     """
     for inp in inputs:
-        # If it's the one with "list", also check if "listOpen" is present
         if inp.get("type") in ["TEXT", "CODED_TEXT"] and "list" in inp:
-            # If 'listOpen' is explicitly false or true, return that
-            # Some tools might store 'listOpen' at the same level
             if inp.get("listOpen") is True:
                 return True
     return False
 
+
 def find_default_value(inputs: List[Dict[str, Any]]) -> Optional[str]:
     """
-    If there's a 'defaultValue' in the 'inputs', return it
+    If there's a 'defaultValue' in the 'inputs', return it.
     """
     for inp in inputs:
         if "defaultValue" in inp:
@@ -342,29 +304,34 @@ def find_default_value(inputs: List[Dict[str, Any]]) -> Optional[str]:
 
 
 if __name__ == "__main__":
-    """
-    Example usage:
-        python3 webtemplate_to_fhir_questionnaire_json.py input_webtemplate.json out_en.json out_de.json
-    """
-    if len(sys.argv) < 2:
-        print("Usage: python3 webtemplate_to_fhir_questionnaire_json.py <input.json> <output> ")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Converts an openEHR web template (JSON) into FHIR Questionnaire (JSON)."
+    )
+    parser.add_argument("--input", required=True, help="Path to the input openEHR web template JSON")
+    parser.add_argument("--output", required=True, help="Base path for the output FHIR Questionnaire JSON")
+    parser.add_argument(
+        "--languages",
+        default="en",
+        help="Comma-separated list of languages to generate. Default is 'en'. Example: 'en,de,fr'"
+    )
+    parser.add_argument(
+        "--fhir_version",
+        default="R4",
+        choices=["R4", "R5"],
+        help="FHIR version to use in the output. Must be either R4 or R5. Default is R4."
+    )
+    args = parser.parse_args()
 
-    # (TODO): put actual code back
-    input_path = sys.argv[1]
-    pattern = r"cistec\.openehr\.(\w+)"
-    template_name = re.search(pattern, sys.argv[1]).group(1)
-    #input_path = "../exports/cistec.openehr.body_weight.v1.json"
-    #input_path = "../exports/report_status_internal_medicine.v1.json"
-    output_dir = "../outputs/questionnaires"
+    # Split languages on commas
+    langs = [lang.strip() for lang in args.languages.split(",")]
 
+    # You can choose how to handle the output naming convention. For example:
     timestamp = dt.now().strftime("%Y%m%d_%H%M")
-    #out_en = os.path.join(output_dir, f"{sys.argv[2]}_EN.json")
-    #out_de = os.path.join(output_dir, f"{sys.argv[2]}_DE.json")
-    out_en = os.path.join(output_dir, f"{template_name}_EN_{timestamp}.json")
-    out_de = os.path.join(output_dir, f"{template_name}_DE_{timestamp}.json")
-
-    # Convert for English
-    convert_webtemplate_to_fhir_questionnaire_json(input_path, out_en, preferred_lang="en")
-    # Convert for German
-    convert_webtemplate_to_fhir_questionnaire_json(input_path, out_de, preferred_lang="de")
+    for lang in langs:
+        out_file = f"{args.output}_{lang}.json"
+        convert_webtemplate_to_fhir_questionnaire_json(
+            input_file_path=args.input,
+            output_file_path=out_file,
+            preferred_lang=lang,
+            fhir_version=args.fhir_version
+        )
