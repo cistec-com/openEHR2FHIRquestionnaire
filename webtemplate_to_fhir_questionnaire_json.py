@@ -35,15 +35,15 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     questionnaire = {
         "resourceType": "Questionnaire",
         "language": preferred_lang,
-        "url": f"http://example.org/fhir/Questionnaire/{template_id}-{preferred_lang}",
+        "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{template_id}",
         "identifier": [
             {
                 "system": "http://example.org/fhir/identifiers",
-                "value": template_id
+                "value": f"{preferred_lang}-{template_id}"
             }
         ],
         "version": "1.0",
-        "name": f"{template_id}-{preferred_lang}",
+        "name": f"{preferred_lang}-{template_id}",
         "title": top_level_name or root_node.get("name", "Unnamed Template"),
         "status": "draft",
         "publisher": "JB",
@@ -67,7 +67,10 @@ def convert_webtemplate_to_fhir_questionnaire_json(
 
     # Create a top-level 'group' item
     composition_item = {
-        "linkId": root_node.get("nodeId", "composition"),
+        # TODO: replace linkId: aqlPath instead of nodeId
+        # Note: root doesn't have aqlPath
+        #"linkId": root_node.get("nodeId", "composition"),
+        "linkId": root_node.get("aqlPath"),
         "text": top_level_name or root_node.get("name", "Composition"),
         "type": "group",
         "item": []
@@ -77,7 +80,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 3) Recursively process children
     children = root_node.get("children", [])
     for child in children:
-        child_item = process_webtemplate_node(child, preferred_lang)
+        child_item = process_webtemplate_node(child, preferred_lang, fhir_version)
         if child_item:
             composition_item["item"].append(child_item)
 
@@ -87,7 +90,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     print(f"FHIR Questionnaire for lang='{preferred_lang}', FHIR={fhir_version} written to {output_file_path}")
 
 
-def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optional[Dict[str, Any]]:
+def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version) -> Optional[Dict[str, Any]]:
     """
     Converts one node from the web template into a FHIR Questionnaire 'item' dict,
     picking the localized text in the chosen language if possible.
@@ -100,7 +103,9 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
             return None
 
     fhir_item = {}
-    link_id = node.get("nodeId") or node.get("id") or "unknown"
+    # TODO: replace linkId: aqlPath instead of nodeId
+    #link_id = node.get("nodeId") or node.get("id") or "unknown"
+    link_id = node.get("aqlPath")
     fhir_item["linkId"] = link_id
 
     # Evaluate min/max -> required, repeats
@@ -121,7 +126,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
         fhir_item["type"] = "group"
         subitems = []
         for child in children:
-            sub_item = process_webtemplate_node(child, preferred_lang)
+            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version)
             if sub_item:
                 subitems.append(sub_item)
         if subitems:
@@ -130,31 +135,65 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str) -> Optio
             # remove group nodes without children
             return None 
     else:
-        rm_type = (node.get("rmType") or "").upper()
-        if rm_type == "DV_CODED_TEXT":
-            fhir_item["type"] = "open-choice" if find_list_open(node.get("inputs", [])) else "choice"
+        #rm_type = (node.get("rmType") or "").upper()
+        fhir_item["type"] = map_rmtype_to_fhir_type(node, fhir_version)
+
+        # TODO: check if this is the correct usage of R5 types
+        if fhir_item["type"] in ["choice", "open-choice", "question", "coding"]:
+            # TODO: default value for other types (?) is there actually defaults in other types?
             default_val = find_default_value(node.get("inputs", []))
             answer_options = build_answer_options(node, preferred_lang, default_val)
             if answer_options:
                 fhir_item["answerOption"] = answer_options
-        elif rm_type == "DV_TEXT":
-            fhir_item["type"] = "string"
-        elif rm_type == "DV_QUANTITY":
-            fhir_item["type"] = "quantity"
+
+        elif fhir_item["type"] == "quantity":
             build_quantity_with_unit_options(fhir_item, node)
-        else:
-            # other types: dateTime, integer, etc.
-            fhir_item["type"] = map_rmtype_to_fhir_type(rm_type)
+
+        #if rm_type == "DV_CODED_TEXT":
+        #    fhir_item["type"] = "open-choice" if find_list_open(node.get("inputs", [])) else "choice"
+        #    default_val = find_default_value(node.get("inputs", []))
+        #    answer_options = build_answer_options(node, preferred_lang, default_val)
+        #    if answer_options:
+        #        fhir_item["answerOption"] = answer_options
+        #elif rm_type == "DV_TEXT":
+        #    fhir_item["type"] = "string"
+        #elif rm_type == "DV_QUANTITY":
+        #    fhir_item["type"] = "quantity"
+        #    build_quantity_with_unit_options(fhir_item, node)
+        #else:
+        #    # other types: dateTime, integer, etc.
+        #    fhir_item["type"] = map_rmtype_to_fhir_type(rm_type)
 
     return fhir_item
 
+# TODO: additional types and data structures.
 
-def map_rmtype_to_fhir_type(rm_type: str) -> str:
-    rm_type = rm_type.upper()
+#data_structures = ["CLUSTER", "DATA_STRUCTURE", "ELEMENT", "EVENT", "HISTORY", "INTERVAL_EVENT", "ITEM", "ITEM_LIST", "ITEM_SINGLE", "ITEM_STRUCTURE", "ITEM_TABLE", "ITEM_TREE", "POINT_EVENT"]
+# data types:
+# all: CODE_PHRASE DATA_VALUE DV_ABSOLUTE_QUANTITY DV_AMOUNT DV_BOOLEAN DV_CODED_TEXT DV_COUNT DV_DATE DV_DATE_TIME DV_DURATION DV_EHR_URI DV_ENCAPSULATED
+# DV_GENERAL_TIME_SPECIFICATION DV_IDENTIFIER DV_INTERVAL DV_MULTIMEDIA DV_ORDERED DV_ORDINAL DV_PARAGRAPH DV_PARSABLE DV_PERIODIC_TIME_SPECIFICATION
+# DV_PROPORTION DV_QUANTIFIED DV_QUANTITY DV_SCALE DV_STATE DV_TEMPORAL DV_TEXT DV_TIME DV_TIME_SPECIFICATION DV_URI PROPORTION_KIND REFERENCE_RANGE TERM_MAPPING
+# included:
+# not included: 
+
+
+# see R4:
+# see R5: https://build.fhir.org/codesystem-item-type.html#item-type-question
+#def map_rmtype_to_fhir_type(rm_type: str) -> str:
+def map_rmtype_to_fhir_type(node, fhir_version):
+    rm_type = (node.get("rmType") or "").upper()
+    #rm_type = rm_type.upper()
     if rm_type in ["COMPOSITION", "CLUSTER", "SECTION", "EVENT_CONTEXT"]:
         return "group"
     elif rm_type == "DV_CODED_TEXT":
-        return "choice"
+        if fhir_version == "R4":
+            return "open-choice" if find_list_open(node.get("inputs", [])) else "choice"
+        # TODO: check if this is the correct usage of R5 types
+        elif fhir_version == "R5":
+            return "question" if find_list_open(node.get("inputs", [])) else "coding"
+        #return "choice"
+    elif rm_type == "DV_TEXT":
+        return "string"
     elif rm_type == "DV_QUANTITY":
         return "quantity"
     elif rm_type == "DV_DATE_TIME":
@@ -165,8 +204,13 @@ def map_rmtype_to_fhir_type(rm_type: str) -> str:
         return "time"
     elif rm_type == "DV_COUNT":
         return "integer"
+    elif rm_type == "DV_BOOLEAN":
+        return "boolean"
+    elif rm_type == "DV_MULTIMEDIA":
+        return "attachment"
+    # TODO: differentiation text/string (?)
     else:
-        return "string"
+        return "text"
 
 
 def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_value: Optional[str]) -> List[Dict[str, Any]]:
@@ -199,6 +243,7 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
                     "display": label
                 }
                 # If this code is the default
+                # TODO: (maybe) use initial instead of initialSelected (seems more stable)
                 if default_value and default_value == label:
                     options.append({
                         "valueCoding": coding_dict,
@@ -238,6 +283,7 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
                 rng = unit_option.get("validation", {}).get("range", {})
                 local_min = rng.get("min")
                 local_max = rng.get("max")
+
                 if local_min is not None:
                     if global_min is None or local_min < global_min:
                         global_min = local_min
@@ -245,21 +291,28 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
                     if global_max is None or local_max > global_max:
                         global_max = local_max
 
+                #if local_min is not None:
+                #    extensions.append({
+                #        "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                #        "valueQuantity": local_min
+                #    })
+#
+                #if local_max is not None:
+                #    extensions.append({
+                #        "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+                #        "valueQuantity": local_max
+                #    })
+
     if global_min is not None:
         extensions.append({
-            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-minValue",
-            "valueQuantity": {
-                "value": global_min,
-                "system": "http://unitsofmeasure.org"
-            }
+            "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+            "valueQuantity": global_min
         })
+
     if global_max is not None:
         extensions.append({
-            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-maxValue",
-            "valueQuantity": {
-                "value": global_max,
-                "system": "http://unitsofmeasure.org"
-            }
+            "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+            "valueQuantity": global_max
         })
 
     if extensions:
@@ -309,6 +362,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--input", required=True, help="Path to the input openEHR web template JSON")
     parser.add_argument("--output", required=True, help="Base path for the output FHIR Questionnaire JSON")
+    parser.add_argument("--output_folder", required=True, help="Output folder path")
     parser.add_argument(
         "--languages",
         default="en",
@@ -328,7 +382,8 @@ if __name__ == "__main__":
     # You can choose how to handle the output naming convention. For example:
     timestamp = dt.now().strftime("%Y%m%d_%H%M")
     for lang in langs:
-        out_file = f"{args.output}_{lang}.json"
+        #out_file = f"{args.output}_{lang}.json"
+        out_file = os.path.join(args.output_folder, f"{timestamp}-{args.output}-{lang}.json")
         convert_webtemplate_to_fhir_questionnaire_json(
             input_file_path=args.input,
             output_file_path=out_file,
