@@ -34,7 +34,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 2) Build the FHIR Questionnaire
     questionnaire = {
         "resourceType": "Questionnaire",
-        "language": preferred_lang,
+        #"language": preferred_lang,
         "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{template_id}",
         "identifier": [
             {
@@ -69,8 +69,8 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     composition_item = {
         # TODO: replace linkId: aqlPath instead of nodeId
         # Note: root doesn't have aqlPath
-        #"linkId": root_node.get("nodeId", "composition"),
-        "linkId": root_node.get("aqlPath"),
+        "linkId": root_node.get("nodeId", "composition"),
+        #"linkId": root_node.get("aqlPath"),
         "text": top_level_name or root_node.get("name", "Composition"),
         "type": "group",
         "item": []
@@ -306,13 +306,13 @@ def build_quantity_with_unit_options(fhir_item: Dict[str, Any], node: Dict[str, 
     if global_min is not None:
         extensions.append({
             "url": "http://hl7.org/fhir/StructureDefinition/minValue",
-            "valueQuantity": global_min
+            "valueDecimal": global_min
         })
 
     if global_max is not None:
         extensions.append({
             "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
-            "valueQuantity": global_max
+            "valueDecimal": global_max
         })
 
     if extensions:
