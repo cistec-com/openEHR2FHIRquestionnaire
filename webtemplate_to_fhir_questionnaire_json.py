@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2025 Cistec AG
+# Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 import json
 import sys
 import re
@@ -361,7 +364,7 @@ if __name__ == "__main__":
         description="Converts an openEHR web template (JSON) into FHIR Questionnaire (JSON)."
     )
     parser.add_argument("--input", required=True, help="Path to the input openEHR web template JSON")
-    parser.add_argument("--output", required=True, help="Base path for the output FHIR Questionnaire JSON")
+    parser.add_argument("--output", required=True, help="Base name for the output FHIR Questionnaire JSON")
     parser.add_argument("--output_folder", required=True, help="Output folder path")
     parser.add_argument(
         "--languages",
