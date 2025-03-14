@@ -17,6 +17,7 @@ python webtemplate_to_fhir_questionnaire_json.py \
     --output_folder <relative_output_folder_path> \
     --languages <comma_separated_langs> \
     --fhir_version <R4|R5>
+```
 
 ## License
 
