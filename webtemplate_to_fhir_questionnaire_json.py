@@ -9,14 +9,17 @@ import sys
 import re
 import os
 import argparse
-from datetime import datetime as dt
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
+import time
 
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
     output_file_path: str,
     preferred_lang: str = "en",
-    fhir_version: str = "R4"
+    fhir_version: str = "R4",
+    name: Optional[str] = None,
+    publisher: Optional[str] = None
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
@@ -33,40 +36,49 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # Gather the top-level name and description in the chosen language
     top_level_name = get_localized_name(root_node, preferred_lang)
     top_level_description = get_localized_description(root_node, preferred_lang)
+    id = root_node.get("id")
+
+    # Get local timezone offset in seconds
+    offset_seconds = time.localtime().tm_gmtoff  
+    offset_hours = offset_seconds // 3600
+    offset_minutes = (offset_seconds % 3600) // 60
+
+    # Format the offset as ±HH:MM
+    offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
+
+        # If you wish to record which FHIR version is being used, you can set a meta.profile or similar:
+    if fhir_version == "R4":
+        profile = "http://hl7.org/fhir/R4/StructureDefinition/Questionnaire"
+        
+    elif fhir_version == "R5":
+        profile = "http://hl7.org/fhir/R5/StructureDefinition/Questionnaire"
+    else:
+        # This is just for safety; the argparse choices=["R4","R5"] should prevent this
+        raise ValueError("Unsupported FHIR version. Must be R4 or R5.")
 
     # 2) Build the FHIR Questionnaire
     questionnaire = {
         "resourceType": "Questionnaire",
+        "id": template_id.replace("_", "-"),
         #"language": preferred_lang,
-        "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{template_id}",
-        "identifier": [
-            {
-                "system": "http://example.org/fhir/identifiers",
-                "value": f"{preferred_lang}-{template_id}"
-            }
-        ],
-        "version": "1.0",
-        "name": f"{preferred_lang}-{template_id}",
+        "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{id}",
+        #"meta": {
+        #    "profile": [profile]
+        #},
+        #"identifier": [
+        #    {
+        #        "system": "http://example.org/fhir/identifiers",
+        #        "value": f"{preferred_lang}-{id}"
+        #    }
+        #],
+        "name": name if name else top_level_name.replace(' ', ''),
         "title": top_level_name or root_node.get("name", "Unnamed Template"),
         "status": "draft",
-        "publisher": "JB",
-        "date": "2025-02-28",
+        "publisher": publisher if publisher else "converter",
+        "date": datetime.now().strftime(f"%Y-%m-%dT%H:%M:%S{offset_str}"),
         "description": top_level_description or "Auto-generated from openEHR web template to FHIR Questionnaire",
         "item": []
     }
-
-    # If you wish to record which FHIR version is being used, you can set a meta.profile or similar:
-    if fhir_version == "R4":
-        questionnaire["meta"] = {
-            "profile": ["http://hl7.org/fhir/R4/StructureDefinition/Questionnaire"]
-        }
-    elif fhir_version == "R5":
-        questionnaire["meta"] = {
-            "profile": ["http://hl7.org/fhir/R5/StructureDefinition/Questionnaire"]
-        }
-    else:
-        # This is just for safety; the argparse choices=["R4","R5"] should prevent this
-        raise ValueError("Unsupported FHIR version. Must be R4 or R5.")
 
     # Create a top-level 'group' item
     composition_item = {
@@ -176,9 +188,6 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
 # all: CODE_PHRASE DATA_VALUE DV_ABSOLUTE_QUANTITY DV_AMOUNT DV_BOOLEAN DV_CODED_TEXT DV_COUNT DV_DATE DV_DATE_TIME DV_DURATION DV_EHR_URI DV_ENCAPSULATED
 # DV_GENERAL_TIME_SPECIFICATION DV_IDENTIFIER DV_INTERVAL DV_MULTIMEDIA DV_ORDERED DV_ORDINAL DV_PARAGRAPH DV_PARSABLE DV_PERIODIC_TIME_SPECIFICATION
 # DV_PROPORTION DV_QUANTIFIED DV_QUANTITY DV_SCALE DV_STATE DV_TEMPORAL DV_TEXT DV_TIME DV_TIME_SPECIFICATION DV_URI PROPORTION_KIND REFERENCE_RANGE TERM_MAPPING
-# included:
-# not included: 
-
 
 # see R4:
 # see R5: https://build.fhir.org/codesystem-item-type.html#item-type-question
@@ -377,13 +386,26 @@ if __name__ == "__main__":
         choices=["R4", "R5"],
         help="FHIR version to use in the output. Must be either R4 or R5. Default is R4."
     )
+    parser.add_argument(
+        "--name",
+        required=False,
+        help="Optional 'name' attribute for the FHIR Questionnaire. "
+             "If not given, we default to the template name (without spaces)."
+    )
+    parser.add_argument(
+        "--publisher",
+        required=False,
+        help="Optional 'publisher' attribute for the FHIR Questionnaire. "
+             "If not given, we default to 'converter'."
+    )
+
     args = parser.parse_args()
 
     # Split languages on commas
     langs = [lang.strip() for lang in args.languages.split(",")]
 
     # You can choose how to handle the output naming convention. For example:
-    timestamp = dt.now().strftime("%Y%m%d_%H%M")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     for lang in langs:
         #out_file = f"{args.output}_{lang}.json"
         out_file = os.path.join(args.output_folder, f"{timestamp}-{args.output}-{lang}.json")
@@ -391,5 +413,7 @@ if __name__ == "__main__":
             input_file_path=args.input,
             output_file_path=out_file,
             preferred_lang=lang,
-            fhir_version=args.fhir_version
+            fhir_version=args.fhir_version,
+            name=args.name,
+            publisher=args.publisher
         )
