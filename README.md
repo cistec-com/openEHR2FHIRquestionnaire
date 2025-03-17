@@ -16,14 +16,10 @@ python webtemplate_to_fhir_questionnaire_json.py \
     --output <base_output_file_name> \
     --output_folder <relative_output_folder_path> \
     --languages <comma_separated_langs> \
-<<<<<<< HEAD
     --fhir_version <R4|R5> \
     --name <Optional name attribute for the FHIR Questionnaire> \
     --publisher <Optional publisher attribute for the FHIR Questionnaire>
-=======
-    --fhir_version <R4|R5>
 ```
->>>>>>> f3c2ab53ab1c747b76b5c0daec1c20e3bc2abadf
 
 ## License
 
