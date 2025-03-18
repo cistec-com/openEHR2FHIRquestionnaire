@@ -14,9 +14,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.6.7'
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: 'pyproject.toml'
 
       - name: Push to Hugging Face Spaces
         env:
@@ -26,8 +37,8 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
-          # Install Hugging Face CLI
-          pip install huggingface_hub
+          # Install Hugging Face CLI using uv
+          uv pip install huggingface_hub
 
           # Login to Hugging Face
           huggingface-cli login --token $HF_TOKEN
