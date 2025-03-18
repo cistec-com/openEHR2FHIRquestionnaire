@@ -28,7 +28,7 @@ jobs:
 
           # Install uv and Hugging Face CLI
           pip install uv
-          uv pip install huggingface_hub
+          uv pip install --system huggingface_hub
 
           # Login to Hugging Face
           huggingface-cli login --token $HF_TOKEN
