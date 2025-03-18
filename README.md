@@ -7,6 +7,10 @@ You can generate multiple language variants, in case the respective translation 
 
 - [Requirements](#requirements)
 - [Usage](#usage)
+  - [Command Line Interface](#command-line-interface)
+  - [Web Interface (Gradio)](#web-interface-gradio)
+  - [Docker Container](#docker-container)
+- [Local Development and Testing](#local-development-and-testing)
 - [Examples](#examples)
 - [Parameters](#parameters)
 - [License](#license)
@@ -16,9 +20,12 @@ You can generate multiple language variants, in case the respective translation 
 ## Requirements
 
 - Python 3.7+
-- No special external libraries are required.
+- No special external libraries are required for the CLI version.
+- For the web interface: see `requirements.txt`
 
 ## Usage
+
+### Command Line Interface
 
 ```bash
 python webtemplate_to_fhir_questionnaire_json.py \
@@ -31,6 +38,97 @@ python webtemplate_to_fhir_questionnaire_json.py \
     --publisher <Optional publisher attribute for the FHIR Questionnaire>
     --text_types <from_annotations|...>
 ```
+
+### Web Interface (Gradio)
+
+We've added a web interface using Gradio. To run it locally:
+
+1. Install the required dependencies using uv (recommended):
+
+   ```bash
+   # Install uv if you don't have it
+   pip install uv
+
+   # Install dependencies
+   uv pip install -r requirements.txt
+   ```
+
+   Alternatively, you can use pip:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Run the Gradio app:
+
+   ```bash
+   python app.py
+   ```
+
+3. Open your browser at http://localhost:7860
+
+You can also try the hosted version of this tool on Hugging Face Spaces: [openEHR2FHIR Questionnaire Converter](https://huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire)
+
+### Docker Container
+
+You can also run the web interface using Docker:
+
+```bash
+# Build the Docker image
+docker build -t openehr2fhir .
+
+# Run the container
+docker run -p 7860:7860 openehr2fhir
+```
+
+Then open your browser at http://localhost:7860
+
+## Local Development and Testing
+
+For local development and testing, follow these steps:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/cistec/openEHR2FHIRquestionnaire.git
+   cd openEHR2FHIRquestionnaire
+   ```
+
+2. Create and activate a virtual environment (optional but recommended):
+
+   ```bash
+   python -m venv .venv
+   # On Windows
+   .venv\Scripts\activate
+   # On macOS/Linux
+   source .venv/bin/activate
+   ```
+
+3. Install dependencies using uv:
+
+   ```bash
+   pip install uv
+   uv pip install -r requirements.txt
+   ```
+
+4. Run the Gradio app with debug mode enabled:
+
+   ```bash
+   python app.py
+   ```
+
+   The app will automatically reload when you make changes to the code.
+
+5. Test the command-line interface:
+
+   ```bash
+   python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtemplate.json
+   ```
+
+6. To test with your own web templates, place them in any directory and use the full path:
+   ```bash
+   python webtemplate_to_fhir_questionnaire_json.py --input /path/to/your/webtemplate.json
+   ```
 
 ### Examples
 
