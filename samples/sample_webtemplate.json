@@ -1,0 +1,63 @@
+{
+  "templateId": "sample_template",
+  "tree": {
+    "id": "sample_root",
+    "name": "Sample Web Template",
+    "localizedNames": {
+      "en": "Sample Web Template",
+      "de": "Beispiel Web-Vorlage"
+    },
+    "localizedDescriptions": {
+      "en": "This is a sample web template for demonstration purposes",
+      "de": "Dies ist eine Beispiel-Web-Vorlage zu Demonstrationszwecken"
+    },
+    "nodeId": "sample_node_id",
+    "children": [
+      {
+        "id": "sample_section",
+        "name": "Sample Section",
+        "localizedNames": {
+          "en": "Sample Section",
+          "de": "Beispielabschnitt"
+        },
+        "rmType": "SECTION",
+        "nodeId": "sample_section_id",
+        "aqlPath": "/content[openEHR-EHR-SECTION.sample_section.v1]",
+        "children": [
+          {
+            "id": "sample_element",
+            "name": "Sample Element",
+            "localizedNames": {
+              "en": "Sample Element",
+              "de": "Beispielelement"
+            },
+            "rmType": "DV_CODED_TEXT",
+            "nodeId": "sample_element_id",
+            "aqlPath": "/content[openEHR-EHR-SECTION.sample_section.v1]/items[openEHR-EHR-ELEMENT.sample_element.v1]/value",
+            "inputs": [
+              {
+                "type": "CODED_TEXT",
+                "list": [
+                  {
+                    "value": "option1",
+                    "label": {
+                      "en": "Option 1",
+                      "de": "Option 1"
+                    }
+                  },
+                  {
+                    "value": "option2",
+                    "label": {
+                      "en": "Option 2",
+                      "de": "Option 2"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

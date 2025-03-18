@@ -5,20 +5,30 @@ You can generate multiple language variants, in case the respective translation 
 
 ## Table of Contents
 
-- [Requirements](#requirements)
-- [Usage](#usage)
-- [Examples](#examples)
-- [Parameters](#parameters)
-- [License](#license)
-- [Contribution](#contribution)
-- [Citation](#citation)
+* [Requirements](#requirements)
+* [Usage](#usage)
+  + [Command Line Interface](#command-line-interface)
+  + [Web Interface (Gradio)](#web-interface-gradio)
+* [Examples](#examples)
+* [Parameters](#parameters)
+* [License](#license)
+* [Contribution](#contribution)
+* [Citation](#citation)
 
 ## Requirements
 
-- Python 3.7+
-- No special external libraries are required.
+### CLI Version (Core Script)
+
+* Python 3.7+ (the core conversion script has no external dependencies)
+
+### Web Interface (Gradio)
+
+* Python 3.8+ (required by Gradio)
+* Dependencies are managed through pyproject.toml
 
 ## Usage
+
+### Command Line Interface
 
 ```bash
 python webtemplate_to_fhir_questionnaire_json.py \
@@ -32,10 +42,33 @@ python webtemplate_to_fhir_questionnaire_json.py \
     --text_types <from_annotations|...>
 ```
 
+Note: Since the CLI script has no external dependencies, it can be run directly with Python without requiring uv.
+
+### Web Interface (Gradio)
+
+We've added a web interface using Gradio. To run it locally:
+
+1. Install uv if you don't have it:
+
+[UV Installation Guide](https://docs.astral.sh/uv/getting-started/installation/)
+
+2. Create a virtual environment and run the app:
+
+```bash
+uv venv --python 3.10
+source .venv/bin/activate
+uv run app.py
+```
+
+3. Open your browser at http://localhost:7860
+
+You can also try the hosted version of this tool on Hugging Face Spaces: [openEHR2FHIR Questionnaire Converter](https://huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire)
+
 ### Examples
 
 ```bash
-python ./webtemplate_to_fhir_questionnaire_json.py \
+# Full example with all parameters
+python webtemplate_to_fhir_questionnaire_json.py \
     --input path_to_folder/web_template.json \
     --output questionnaire \
     --output_folder output_folder_path \
@@ -47,7 +80,13 @@ python ./webtemplate_to_fhir_questionnaire_json.py \
 ```
 
 ```bash
-python ./webtemplate_to_fhir_questionnaire_json.py --input web_template.json
+# Simple example with just input file
+python webtemplate_to_fhir_questionnaire_json.py --input web_template.json
+```
+
+```bash
+# Test with sample web template included in the repository
+python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtemplate.json
 ```
 
 ### Parameters
@@ -57,11 +96,11 @@ python ./webtemplate_to_fhir_questionnaire_json.py --input web_template.json
 | --input         | Path to the Web Template JSON file to be converted into a FHIR Questionnaire. | Yes       | None                               |                                                                                                                                                           |
 | --output        | Base output file name for the generated FHIR Questionnaire.                   | No        | Input file base name.              | A timestamp (%Y%m%d\_%H%M) is prepended and the language code appended to the base name.                                                                  |
 | --output_folder | Path to the Web Template JSON file to be converted into a FHIR Questionnaire. | No        | `.` (current folder)               |                                                                                                                                                           |
-| --languages     | Comma-separated list of language codes (e.g., `en,de`)..                      | No        | `en`                               | A separate questionnaire is generated for each language.                                                                                                  |
-| --fhir_version  | FHIR version to use (either `R4` or `R5`).                                    | No        | `R4`                               |                                                                                                                                                           |
+| --languages     | Comma-separated list of language codes (e.g., `en,de` )..                      | No        | `en` | A separate questionnaire is generated for each language.                                                                                                  |
+| --fhir_version  | FHIR version to use (either `R4` or `R5` ).                                    | No        | `R4` |                                                                                                                                                           |
 | --name          | The `name` attribute for the FHIR Questionnaire.                              | No        | Web Template name (without spaces) |                                                                                                                                                           |
-| --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter`                        |                                                                                                                                                           |
-| --text_types    | Distinction of `DV_TEXT` mapping to `text` and `string` FHIR types.           | No        | None                               | `from_annotations`: Annotated items in the Web Template with `key=text_type` and `value=<string \| text>` are converted to the respective FHIR item type. |
+| --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter` |                                                                                                                                                           |
+| --text_types    | Distinction of `DV_TEXT` mapping to `text` and `string` FHIR types.           | No        | None                               | `from_annotations` : Annotated items in the Web Template with `key=text_type` and `value=<string \| text>` are converted to the respective FHIR item type. |
 
 ## License
 
