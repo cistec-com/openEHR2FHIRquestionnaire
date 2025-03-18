@@ -1,0 +1,21 @@
+[project]
+name = "openEHR2FHIRquestionnaire"
+version = "0.1.0"
+description = "Converts openEHR web templates to FHIR Questionnaire resources"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Cistec AG"}
+]
+dependencies = [
+    "gradio>=3.35.2",
+    "python-dateutil>=2.8.2"
+]
+
+[project.urls]
+Homepage = "https://github.com/cistec-com/openEHR2FHIRquestionnaire"
+"Bug Tracker" = "https://github.com/cistec-com/openEHR2FHIRquestionnaire/issues"
+
+[tool.uv]
+# UV-specific configuration can be added here if needed

@@ -14,9 +14,9 @@ if __name__ == "__main__":
     # Ensure the current directory is in the Python path
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-    # Run the app with debug mode enabled
+    # Run the app with debug mode enabled using uv
     subprocess.run([
-        sys.executable,
+        "uv", "run",
         "app.py",
         "--debug",
         "--port", "7860"

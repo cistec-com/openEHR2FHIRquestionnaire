@@ -107,7 +107,7 @@ def create_gradio_interface():
 
             with gr.Column():
                 output = gr.Markdown(label="Conversion Result")
-                download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="file")
+                download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="filepath")
 
         convert_btn.click(
             fn=convert_openehr_to_fhir,

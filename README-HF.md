@@ -1,14 +1,14 @@
 # openEHR to FHIR Questionnaire Converter
 
-This tool allows you to convert openEHR web templates (JSON) to FHIR Questionnaire resources.
+This tool allows you to convert openEHR web templates (JSON) to FHIR Questionnaire resources. This application uses uv for efficient Python package management.
 
 ## Features
 
-- Convert openEHR web templates to FHIR Questionnaires
-- Support for multiple languages (en, de, fr, etc.)
-- Support for both FHIR R4 and R5 versions
-- Download converted FHIR Questionnaires as JSON files
-- Sample template available for testing
+* Convert openEHR web templates to FHIR Questionnaires
+* Support for multiple languages (en, de, fr, etc.)
+* Support for both FHIR R4 and R5 versions
+* Download converted FHIR Questionnaires as JSON files
+* Sample template available for testing
 
 ## How to use
 
@@ -31,7 +31,7 @@ This tool bridges the gap between these standards by converting openEHR template
 
 ## Source code
 
-The source code for this tool is available on GitHub: [cistec/openEHR2FHIRquestionnaire](https://github.com/cistec/openEHR2FHIRquestionnaire)
+The source code for this tool is available on GitHub: [cistec/openEHR2FHIRquestionnaire](https://github.com/cistec-com/openEHR2FHIRquestionnaire)
 
 ## License
 

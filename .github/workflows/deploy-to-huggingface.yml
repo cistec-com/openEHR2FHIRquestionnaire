@@ -17,21 +17,21 @@ jobs:
       - name: Push to Hugging Face Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-          SPACE_NAME: openEHR2FHIRquestionnaire
+          SPACE_NAME: cistec/openEHR2FHIRquestionnaire
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
-          # Install Hugging Face CLI
-          pip install huggingface_hub
+          # Install uv and Hugging Face CLI
+          pip install uv
+          uv pip install huggingface_hub
 
           # Login to Hugging Face
           huggingface-cli login --token $HF_TOKEN
 
           # Prepare the repository for pushing to HF Spaces
           # If this is the first deployment, create the space
-          python -c "from huggingface_hub import HfApi; api = HfApi(); api.create_repo(repo_id='$HF_USERNAME/$SPACE_NAME', repo_type='space', space_sdk='gradio')" || echo "Space already exists"
+          python -c "from huggingface_hub import HfApi; api = HfApi(); api.create_repo(repo_id='$SPACE_NAME', repo_type='space', space_sdk='gradio')" || echo "Space already exists"
 
           # Push to Hugging Face Spaces
-          git push https://oauth2:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME main:main -f
+          git push https://oauth2:$HF_TOKEN@huggingface.co/spaces/$SPACE_NAME main:main -f
