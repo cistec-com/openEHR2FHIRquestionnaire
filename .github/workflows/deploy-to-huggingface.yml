@@ -1,5 +1,8 @@
 name: Deploy to Hugging Face Spaces
 
+env:
+  UV_SYSTEM_PYTHON: 1
+
 on:
   push:
     branches:
