@@ -375,15 +375,26 @@ if __name__ == "__main__":
         description="Converts an openEHR web template (JSON) into FHIR Questionnaire (JSON)."
     )
     parser.add_argument("--input", required=True, help="Path to the input openEHR web template JSON")
-    parser.add_argument("--output", required=True, help="Base name for the output FHIR Questionnaire JSON")
-    parser.add_argument("--output_folder", required=True, help="Output folder path")
+    parser.add_argument(
+        "--output",
+        required=False,
+        help="Base name for the output FHIR Questionnaire JSON"
+    )
+    parser.add_argument(
+        "--output_folder",
+        required=False,
+        default=".",
+        help="Output folder path"
+    )
     parser.add_argument(
         "--languages",
+        required=False,
         default="en",
         help="Comma-separated list of languages to generate. Default is 'en'. Example: 'en,de,fr'"
     )
     parser.add_argument(
         "--fhir_version",
+        required=False,
         default="R4",
         choices=["R4", "R5"],
         help="FHIR version to use in the output. Must be either R4 or R5. Default is R4."
@@ -413,9 +424,15 @@ if __name__ == "__main__":
 
     # You can choose how to handle the output naming convention. For example:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    # set (default) output base name:
+    if args.output:
+        base_name = args.output
+    else:
+        base_name = os.path.splitext(os.path.basename(args.input))[0]
+
     for lang in langs:
         #out_file = f"{args.output}_{lang}.json"
-        out_file = os.path.join(args.output_folder, f"{timestamp}-{args.output}-{lang}.json")
+        out_file = os.path.join(args.output_folder, f"{timestamp}-{base_name}-{lang}.json")
         convert_webtemplate_to_fhir_questionnaire_json(
             input_file_path=args.input,
             output_file_path=out_file,
