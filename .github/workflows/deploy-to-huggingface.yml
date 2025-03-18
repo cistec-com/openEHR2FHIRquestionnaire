@@ -1,41 +1,20 @@
-name: Deploy to Hugging Face Spaces
-
+name: Sync to Hugging Face hub
 on:
   push:
-    branches:
-      - main
-  pull_request_target:
-    types: [opened, synchronize, reopened]
-    branches:
-      - main
+    branches: [main]
+
+  # to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  deploy:
+  sync-to-hub:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Push to Hugging Face Spaces
+          lfs: true
+      - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SPACE_NAME: cistec/openEHR2FHIRquestionnaire
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
-
-          # Install uv and Hugging Face CLI
-          pip install uv
-          uv pip install huggingface_hub
-
-          # Login to Hugging Face
-          huggingface-cli login --token $HF_TOKEN
-
-          # Prepare the repository for pushing to HF Spaces
-          # If this is the first deployment, create the space
-          python -c "from huggingface_hub import HfApi; api = HfApi(); api.create_repo(repo_id='$SPACE_NAME', repo_type='space', space_sdk='gradio')" || echo "Space already exists"
-
-          # Push to Hugging Face Spaces
-          git push https://oauth2:$HF_TOKEN@huggingface.co/spaces/$SPACE_NAME main:main -f
+        run: git push https://cistec:$HF_TOKEN@huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire main
