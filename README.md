@@ -3,6 +3,15 @@
 This script converts an openEHR web template (JSON) to one or more FHIR Questionnaire resources (JSON).  
 You can generate multiple language variants, in case the respective translation is included in the web template. The FHIR version can be selected (currently supports R4 and R5).
 
+## Table of Contents
+- [Requirements](#requirements)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Parameters](#parameters)
+- [License](#license)
+- [Contribution](#contribution)
+- [Citation](#citation)
+
 ## Requirements
 
 - Python 3.7+
@@ -55,11 +64,11 @@ python ./webtemplate_to_fhir_questionnaire_json.py --input web_template.json
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contribution
 
-Contributions are welcome! Please feel free to submit a Pull Request. See the CONTRIBUTING.md file for details.
+Contributions are welcome! Please feel free to submit a Pull Request. See the [CONTRIBUTING.md](CONTRIBUTING.md) file for details.
 
 ## Citation
 Cistec AG. (2025). openEHR to FHIR Questionnaire Mapper [Computer software]. 
