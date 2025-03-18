@@ -5,8 +5,6 @@
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import json
-import sys
-import re
 import os
 import argparse
 from datetime import datetime, timezone
@@ -19,7 +17,8 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     preferred_lang: str = "en",
     fhir_version: str = "R4",
     name: Optional[str] = None,
-    publisher: Optional[str] = None
+    publisher: Optional[str] = None,
+    text_types: Optional[str] = None
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
@@ -95,7 +94,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 3) Recursively process children
     children = root_node.get("children", [])
     for child in children:
-        child_item = process_webtemplate_node(child, preferred_lang, fhir_version)
+        child_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
         if child_item:
             composition_item["item"].append(child_item)
 
@@ -105,7 +104,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     print(f"FHIR Questionnaire for lang='{preferred_lang}', FHIR={fhir_version} written to {output_file_path}")
 
 
-def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version) -> Optional[Dict[str, Any]]:
+def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, text_types) -> Optional[Dict[str, Any]]:
     """
     Converts one node from the web template into a FHIR Questionnaire 'item' dict,
     picking the localized text in the chosen language if possible.
@@ -127,7 +126,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
     min_occurs = node.get("min", 0)
     max_occurs = node.get("max", 1)
     fhir_item["required"] = (min_occurs >= 1)
-    fhir_item["repeats"] = (max_occurs >= 2)
+    fhir_item["repeats"] = (max_occurs >= 2 or max_occurs == -1)
 
     # Use localized names/descriptions for item text, if available
     item_text = get_localized_name(node, preferred_lang)
@@ -141,7 +140,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
         fhir_item["type"] = "group"
         subitems = []
         for child in children:
-            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version)
+            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
             if sub_item:
                 subitems.append(sub_item)
         if subitems:
@@ -151,7 +150,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
             return None 
     else:
         #rm_type = (node.get("rmType") or "").upper()
-        fhir_item["type"] = map_rmtype_to_fhir_type(node, fhir_version)
+        fhir_item["type"] = map_rmtype_to_fhir_type(node, fhir_version, text_types)
 
         # TODO: check if this is the correct usage of R5 types
         if fhir_item["type"] in ["choice", "open-choice", "question", "coding"]:
@@ -192,7 +191,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
 # see R4:
 # see R5: https://build.fhir.org/codesystem-item-type.html#item-type-question
 #def map_rmtype_to_fhir_type(rm_type: str) -> str:
-def map_rmtype_to_fhir_type(node, fhir_version):
+def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
     rm_type = (node.get("rmType") or "").upper()
     #rm_type = rm_type.upper()
     if rm_type in ["COMPOSITION", "CLUSTER", "SECTION", "EVENT_CONTEXT"]:
@@ -205,7 +204,10 @@ def map_rmtype_to_fhir_type(node, fhir_version):
             return "question" if find_list_open(node.get("inputs", [])) else "coding"
         #return "choice"
     elif rm_type == "DV_TEXT":
-        return "string"
+        if text_types == "from_annotations":
+            return node.get("annotations", {}).get("text_type")
+        else:
+            return "text"
     elif rm_type == "DV_QUANTITY":
         return "quantity"
     elif rm_type == "DV_DATE_TIME":
@@ -398,6 +400,11 @@ if __name__ == "__main__":
         help="Optional 'publisher' attribute for the FHIR Questionnaire. "
              "If not given, we default to 'converter'."
     )
+    parser.add_argument(
+        "--text_types",
+        required=False,
+        help="Handling of Free text (string/text in questionnaires)."
+    )
 
     args = parser.parse_args()
 
@@ -415,5 +422,6 @@ if __name__ == "__main__":
             preferred_lang=lang,
             fhir_version=args.fhir_version,
             name=args.name,
-            publisher=args.publisher
+            publisher=args.publisher,
+            text_types=args.text_types
         )
