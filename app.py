@@ -93,13 +93,13 @@ def create_gradio_interface():
 
                 with gr.Row():
                     languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
-                    fhir_version = gr.Radio(["R4", "R5"], label="FHIR Version", value="R4")
+                    fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                 with gr.Row():
                     name = gr.Textbox(label="Name (optional)", info="The 'name' attribute for the FHIR Questionnaire")
                     publisher = gr.Textbox(label="Publisher (optional)", info="The 'publisher' attribute for the FHIR Questionnaire")
 
-                text_types = gr.Dropdown(["from_annotations", None], label="Text Type Handling", value=None)
+                text_types = gr.Dropdown(choices=["from_annotations", None], label="Text Type Handling", value=None)
 
                 with gr.Row():
                     load_sample_btn = gr.Button("Load Sample")
@@ -107,7 +107,7 @@ def create_gradio_interface():
 
             with gr.Column():
                 output = gr.Markdown(label="Conversion Result")
-                download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="filepath")
+                download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
 
         convert_btn.click(
             fn=convert_openehr_to_fhir,

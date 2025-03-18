@@ -4,7 +4,7 @@ emoji: 📋
 colorFrom: blue
 colorTo: green
 sdk: gradio
-sdk_version: 3.35.2
+sdk_version: 4.19.2
 app_file: app_hf.py
 pinned: false
 license: mit
@@ -35,7 +35,7 @@ You can generate multiple language variants, in case the respective translation 
 
 ### Web Interface (Gradio)
 
-* Python 3.8+ (required by Gradio)
+* Python 3.10+ (required by Gradio)
 * Dependencies are managed through pyproject.toml
 
 ## Usage

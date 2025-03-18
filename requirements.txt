@@ -1,2 +1,0 @@
-gradio>=3.35.2
-python-dateutil>=2.8.2
