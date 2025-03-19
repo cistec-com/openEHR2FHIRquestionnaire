@@ -222,7 +222,10 @@ def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
         return "boolean"
     elif rm_type == "DV_MULTIMEDIA":
         return "attachment"
-    # TODO: differentiation text/string (?)
+    elif rm_type == "DV_URI":
+        return "reference"
+    elif rm_type == "DV_EHR_URI":
+        return "reference"
     else:
         return "text"
 
