@@ -120,7 +120,7 @@ python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtempl
 |--------------------------------------------|---------------------------|-------|
 | `COMPOSITION`, `CLUSTER`, `SECTION`, `EVENT_CONTEXT` | `group`                   | Used for hierarchical structuring. |
 | `DV_CODED_TEXT`                            | `choice` / `open-choice` (R4) or `coding` / `question` (R5) | Depends on `fhir_version` and whether the list is open. |
-| `DV_TEXT`                                  | `text`                     | If `text_types="from_annotations"`, annotations are used for distinction. |
+| `DV_TEXT`                                  | `text` / `string`          | If `text_types="from_annotations"`, annotations are used for distinction. Default to using `text` |
 | `DV_QUANTITY`                              | `quantity`                 |  |
 | `DV_DATE_TIME`                             | `dateTime`                 |  |
 | `DV_DATE`                                  | `date`                     |  |
