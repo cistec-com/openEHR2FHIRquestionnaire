@@ -114,6 +114,23 @@ python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtempl
 | --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter` |                                                                                                                                                           |
 | --text_types    | Distinction of `DV_TEXT` mapping to `text` and `string` FHIR types.           | No        | None                               | `from_annotations` : Annotated items in the Web Template with `key=text_type` and `value=<string \| text>` are converted to the respective FHIR item type. |
 
+## Type Mappings
+
+| openEHR RM Type                            | FHIR Questionnaire Type   | Notes |
+|--------------------------------------------|---------------------------|-------|
+| `COMPOSITION`, `CLUSTER`, `SECTION`, `EVENT_CONTEXT` | `group`                   | Used for hierarchical structuring. |
+| `DV_CODED_TEXT`                            | `choice` / `open-choice` (R4) or `coding` / `question` (R5) | Depends on `fhir_version` and whether the list is open. |
+| `DV_TEXT`                                  | `text`                     | If `text_types="from_annotations"`, annotations are used for distinction. |
+| `DV_QUANTITY`                              | `quantity`                 |  |
+| `DV_DATE_TIME`                             | `dateTime`                 |  |
+| `DV_DATE`                                  | `date`                     |  |
+| `DV_TIME`, `DV_DURATION`                   | `time`                     |  |
+| `DV_COUNT`                                 | `integer`                  |  |
+| `DV_BOOLEAN`                               | `boolean`                  |  |
+| `DV_MULTIMEDIA`                            | `attachment`               |  |
+| `DV_URI`, `DV_EHR_URI`                     | `reference`                |  |
+| *Other types*                              | `text`                     | Default fallback for unmapped types. |
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
