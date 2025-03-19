@@ -190,44 +190,43 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
 
 # see R4:
 # see R5: https://build.fhir.org/codesystem-item-type.html#item-type-question
-#def map_rmtype_to_fhir_type(rm_type: str) -> str:
 def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
+    """Maps an openEHR RM Type to a corresponding FHIR Questionnaire item type."""
     rm_type = (node.get("rmType") or "").upper()
-    #rm_type = rm_type.upper()
-    if rm_type in ["COMPOSITION", "CLUSTER", "SECTION", "EVENT_CONTEXT"]:
-        return "group"
-    elif rm_type == "DV_CODED_TEXT":
+    # General mappings
+    rmtype_to_fhir = {
+        "COMPOSITION": "group",
+        "CLUSTER": "group",
+        "SECTION": "group",
+        "EVENT_CONTEXT": "group",
+        "DV_QUANTITY": "quantity",
+        "DV_DATE_TIME": "dateTime",
+        "DV_DATE": "date",
+        "DV_TIME": "time",
+        "DV_DURATION": "time",
+        "DV_COUNT": "integer",
+        "DV_BOOLEAN": "boolean",
+        "DV_MULTIMEDIA": "attachment",
+        "DV_URI": "reference",
+        "DV_EHR_URI": "reference",
+    }
+
+    # Return if a direct match exists
+    if rm_type in rmtype_to_fhir:
+        return rmtype_to_fhir[rm_type]
+
+    # Special cases
+    if rm_type == "DV_CODED_TEXT":
         if fhir_version == "R4":
             return "open-choice" if find_list_open(node.get("inputs", [])) else "choice"
-        # TODO: check if this is the correct usage of R5 types
         elif fhir_version == "R5":
             return "question" if find_list_open(node.get("inputs", [])) else "coding"
-        #return "choice"
-    elif rm_type == "DV_TEXT":
-        if text_types == "from_annotations":
-            return node.get("annotations", {}).get("text_type")
-        else:
-            return "text"
-    elif rm_type == "DV_QUANTITY":
-        return "quantity"
-    elif rm_type == "DV_DATE_TIME":
-        return "dateTime"
-    elif rm_type == "DV_DATE":
-        return "date"
-    elif rm_type in ["DV_TIME", "DV_DURATION"]:
-        return "time"
-    elif rm_type == "DV_COUNT":
-        return "integer"
-    elif rm_type == "DV_BOOLEAN":
-        return "boolean"
-    elif rm_type == "DV_MULTIMEDIA":
-        return "attachment"
-    elif rm_type == "DV_URI":
-        return "reference"
-    elif rm_type == "DV_EHR_URI":
-        return "reference"
-    else:
-        return "text"
+
+    if rm_type == "DV_TEXT":
+        return node.get("annotations", {}).get("text_type") if text_types == "from_annotations" else "text"
+
+    # Default case
+    return "text"
 
 
 def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_value: Optional[str]) -> List[Dict[str, Any]]:
