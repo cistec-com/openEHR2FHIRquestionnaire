@@ -21,8 +21,9 @@ You can generate multiple language variants, in case the respective translation 
 * [Usage](#usage)
   + [Command Line Interface](#command-line-interface)
   + [Web Interface (Gradio)](#web-interface-gradio)
-* [Examples](#examples)
-* [Parameters](#parameters)
+  + [Examples](#examples)
+  + [Parameters](#parameters)
+* [Data Type Mapping](#data-type-mapping)
 * [License](#license)
 * [Contribution](#contribution)
 * [Citation](#citation)
@@ -114,13 +115,13 @@ python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtempl
 | --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter` |                                                                                                                                                           |
 | --text_types    | Distinction of `DV_TEXT` mapping to `text` and `string` FHIR types.           | No        | None                               | `from_annotations` : Annotated items in the Web Template with `key=text_type` and `value=<string \| text>` are converted to the respective FHIR item type. |
 
-## Type Mappings
+## Data Type Mapping
 
 | openEHR RM Type                            | FHIR Questionnaire Type   | Notes |
 |--------------------------------------------|---------------------------|-------|
 | `COMPOSITION`, `CLUSTER`, `SECTION`, `EVENT_CONTEXT` | `group`                   | Used for hierarchical structuring. |
 | `DV_CODED_TEXT`                            | `choice` / `open-choice` (R4) or `coding` / `question` (R5) | Depends on `fhir_version` and whether the list is open. |
-| `DV_TEXT`                                  | `text` / `string`          | If `text_types="from_annotations"`, annotations are used for distinction. Default to using `text` |
+| `DV_TEXT`                                  | `text` / `string`          | If `text_types="from_annotations"`, annotations are used for distinction. Defaults to using `text`. |
 | `DV_QUANTITY`                              | `quantity`                 |  |
 | `DV_DATE_TIME`                             | `dateTime`                 |  |
 | `DV_DATE`                                  | `date`                     |  |
