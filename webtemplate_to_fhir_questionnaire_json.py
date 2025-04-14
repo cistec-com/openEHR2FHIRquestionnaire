@@ -111,6 +111,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
     """
 
     # Exclude items that are purely contextual, if appropriate:
+    # TODO: add parameter to enable/disable this as a setting
     if node.get("inContext") is True:
         # Exclude most context items except certain date/time?
         if node.get("rmType") != "DV_DATE_TIME" or node.get("aqlPath") == "/context/start_time":
@@ -131,7 +132,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
     # Use localized names/descriptions for item text, if available
     item_text = get_localized_name(node, preferred_lang)
     if not item_text:
-        item_text = node.get("name") or node.get("localizedName") or link_id
+        item_text = node.get("name") or node.get("localizedName") or node.get("id")
     fhir_item["text"] = item_text
 
     # Child items
@@ -246,6 +247,7 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
                 elif isinstance(label, dict):
                     label = next(iter(label.values()))
 
+                # TODO: replace this with a proper solution that validates when posting
                 system = "http://cistec-internal-dummy.ch/noCodes"
                 terminology = input_def.get("terminology")
                 if terminology:
