@@ -3,6 +3,8 @@
 This script converts an openEHR web template (JSON) to one or more FHIR Questionnaire resources (JSON).
 You can generate multiple language variants, in case the respective translation is included in the web template. The FHIR version can be selected (currently supports R4 and R5).
 
+[Try the converter in the Web Interface](https://huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire)
+
 ## Table of Contents
 
 * [Requirements](#requirements)
