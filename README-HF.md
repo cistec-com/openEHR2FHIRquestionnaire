@@ -1,3 +1,15 @@
+---
+title: openEHR to FHIR Questionnaire Converter
+emoji: 📋
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: 4.19.2
+app_file: app_hf.py
+pinned: false
+license: mit
+---
+
 # openEHR to FHIR Questionnaire Converter
 
 This tool allows you to convert openEHR web templates (JSON) to FHIR Questionnaire resources. This application uses uv for efficient Python package management.
