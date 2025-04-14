@@ -92,7 +92,7 @@ def create_gradio_interface():
                 webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
 
                 with gr.Row():
-                    languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
+                    languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr\nCreates a separate Questionnaire for each language")
                     fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                 with gr.Row():
@@ -106,8 +106,10 @@ def create_gradio_interface():
                     convert_btn = gr.Button("Convert to FHIR", variant="primary")
 
             with gr.Column():
-                output = gr.Markdown(label="Conversion Result")
                 download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
+                
+                with gr.Accordion("Conversion Result", open=True):
+                    output = gr.Markdown()
 
         convert_btn.click(
             fn=convert_openehr_to_fhir,
