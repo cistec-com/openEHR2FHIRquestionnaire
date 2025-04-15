@@ -66,9 +66,19 @@ def convert_openehr_to_fhir(
     results = []
 
     for lang, content in output_content.items():
-        results.append(f"## FHIR Questionnaire ({lang}):\n```json\n{content}\n```")
+        # Use HTML <details> tags to create collapsible sections
+        # The <summary> becomes the section title
+        details_block = (
+            f"<details>"
+            f"<summary><strong>FHIR Questionnaire ({lang})</strong></summary>\n\n"
+            f"```json\n{content}\n```"
+            f"\n</details>"
+        )
+        results.append(details_block)
 
-    return "\n\n".join(results), download_files
+    # Join all collapsible sections together
+    combined_result = "\n\n".join(results)
+    return combined_result, download_files
 
 def load_sample():
     """Load a sample openEHR web template for demonstration"""
@@ -92,7 +102,7 @@ def create_gradio_interface():
                 webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
 
                 with gr.Row():
-                    languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr\nCreates a separate Questionnaire for each language")
+                    languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr<br>Creates a separate Questionnaire for each language")
                     fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                 with gr.Row():
