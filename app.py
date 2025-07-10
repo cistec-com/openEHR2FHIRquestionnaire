@@ -15,7 +15,7 @@ def convert_openehr_to_fhir(
     fhir_version="R4",
     name=None,
     publisher=None,
-    text_types=None
+    description=None
 ):
     """
     Process the uploaded openEHR web template and return the converted FHIR Questionnaire(s)
@@ -49,7 +49,7 @@ def convert_openehr_to_fhir(
                 fhir_version=fhir_version,
                 name=name,
                 publisher=publisher,
-                text_types=text_types
+                description=description
             )
 
             # Read the generated file
@@ -127,7 +127,7 @@ def create_gradio_interface():
 
         convert_btn.click(
             fn=convert_openehr_to_fhir,
-            inputs=[webtemplate_file, languages, fhir_version, name, publisher, text_types],
+            inputs=[webtemplate_file, languages, fhir_version, name, publisher, description],
             outputs=[output, download_files]
         )
 
