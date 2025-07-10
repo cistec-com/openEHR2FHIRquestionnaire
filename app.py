@@ -106,10 +106,14 @@ def create_gradio_interface():
                     fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                 with gr.Row():
-                    name = gr.Textbox(label="Name (optional)", info="The 'name' attribute for the FHIR Questionnaire")
+                    name = gr.Textbox(label="Name (optional)", info="Name for this questionnaire (computer friendly)")
                     publisher = gr.Textbox(label="Publisher (optional)", info="The 'publisher' attribute for the FHIR Questionnaire")
 
-                text_types = gr.Dropdown(choices=["from_annotations", None], label="Text Type Handling", value=None)
+                # TODO: add more fields, implement in app & script
+                with gr.Row():
+                    #status = gr.Radio(choices=["draft", "active", "retired", "unknown"], label="Status of the Questionnaire", value="draft", info="The 'status' attribute for the FHIR Questionnaire")
+                    #title = gr.Textbox(label="Title (optional)", info="Name for this questionnaire (human friendly)")
+                    description = gr.Textbox(label="Description (optional)", info="Natural language description of the questionnaire (markdown)")
 
                 with gr.Row():
                     load_sample_btn = gr.Button("Load Sample")

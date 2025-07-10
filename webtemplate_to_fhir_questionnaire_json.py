@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import time
+from collections import OrderedDict
 
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
@@ -18,7 +19,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     fhir_version: str = "R4",
     name: Optional[str] = None,
     publisher: Optional[str] = None,
-    text_types: Optional[str] = None
+    description: Optional[str] = None
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
@@ -44,6 +45,8 @@ def convert_webtemplate_to_fhir_questionnaire_json(
 
     # Format the offset as ±HH:MM
     offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
+
+    cardinality_map = OrderedDict()
 
         # If you wish to record which FHIR version is being used, you can set a meta.profile or similar:
     if fhir_version == "R4":
@@ -75,7 +78,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
         "status": "draft",
         "publisher": publisher if publisher else "converter",
         "date": datetime.now().strftime(f"%Y-%m-%dT%H:%M:%S{offset_str}"),
-        "description": top_level_description or "Auto-generated from openEHR web template to FHIR Questionnaire",
+        "description": description or top_level_description,
         "item": []
     }
 
@@ -83,7 +86,10 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     composition_item = {
         # TODO: replace linkId: aqlPath instead of nodeId
         # Note: root doesn't have aqlPath
-        "linkId": root_node.get("nodeId", "composition"),
+        #####
+        #"linkId": root_node.get("nodeId", "composition"),
+        "linkId": root_node.get("id"),
+        #####
         #"linkId": root_node.get("aqlPath"),
         "text": top_level_name or root_node.get("name", "Composition"),
         "type": "group",
@@ -91,37 +97,47 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     }
     questionnaire["item"].append(composition_item)
 
+    #root_id = root_node.get("id")
+
     # 3) Recursively process children
     children = root_node.get("children", [])
     for child in children:
-        child_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
+        child_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=[root_node.get("id")], cardinality_map=cardinality_map)
         if child_item:
             composition_item["item"].append(child_item)
 
-    # 4) Write output
+    # 4) Write questionnaire output
     with open(output_file_path, "w", encoding="utf-8") as out:
         json.dump(questionnaire, out, indent=2, ensure_ascii=False)
     print(f"FHIR Questionnaire for lang='{preferred_lang}', FHIR={fhir_version} written to {output_file_path}")
 
+    # 5) Write cardinality output for later validation against response
+    #card_file_path = output_file_path.replace(".json", "_cardinality.json")
+    #with open(card_file_path, "w", encoding="utf-8") as f:
+    #    json.dump(cardinality_map, f, indent=2)
+    #print(f"Cardinality map written to {card_file_path}")
 
-def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, text_types) -> Optional[Dict[str, Any]]:
+#def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, text_types) -> Optional[Dict[str, Any]]:
+def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, parent_ids: Optional[List[str]] = None, cardinality_map=OrderedDict()) -> Optional[Dict[str, Any]]:
+
     """
     Converts one node from the web template into a FHIR Questionnaire 'item' dict,
     picking the localized text in the chosen language if possible.
     """
+    #####
+    if parent_ids is None:
+        parent_ids = []
+    #####
 
     # Exclude items that are purely contextual, if appropriate:
     # TODO: add parameter to enable/disable this as a setting
     if node.get("inContext") is True:
         # Exclude most context items except certain date/time?
-        if node.get("rmType") != "DV_DATE_TIME" or node.get("aqlPath") == "/context/start_time":
-            return None
+        # TODO: figure out if and how to convert these things like time
+        #if node.get("rmType") != "DV_DATE_TIME" or node.get("aqlPath") == "/context/start_time":
+        return None
 
     fhir_item = {}
-    # TODO: replace linkId: aqlPath instead of nodeId
-    #link_id = node.get("nodeId") or node.get("id") or "unknown"
-    link_id = node.get("aqlPath")
-    fhir_item["linkId"] = link_id
 
     # Evaluate min/max -> required, repeats
     min_occurs = node.get("min", 0)
@@ -129,11 +145,59 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
     fhir_item["required"] = (min_occurs >= 1)
     fhir_item["repeats"] = (max_occurs >= 2 or max_occurs == -1)
 
+    # TODO: replace linkId: aqlPath instead of nodeId
+    #link_id = node.get("nodeId") or node.get("id") or "unknown"
+    #####
+    #link_id = node.get("aqlPath")
+    #fhir_item["linkId"] = link_id
+    # Get this node's id
+    current_id = node.get("id") #or node.get("nodeId") or "unknown"
+    #if max_occurs >=2:
+    #    current_id = f"{current_id}[max={max_occurs}]"
+    #if max_occurs == -1: # corresponds to "unbounded" in openEHR
+    #    current_id = f"{current_id}[max=*]"
+    
+    # Construct the flat path
+    flat_path_parts = parent_ids + [current_id]
+    flat_path = "/".join(flat_path_parts)
+    #####
+    # Use that as the linkId
+    fhir_item["linkId"] = flat_path
+
+    cardinality_map[flat_path] = (min_occurs, max_occurs)
+
     # Use localized names/descriptions for item text, if available
     item_text = get_localized_name(node, preferred_lang)
     if not item_text:
         item_text = node.get("name") or node.get("localizedName") or node.get("id")
     fhir_item["text"] = item_text
+
+    # Add help-text as display item if localizedDescription exists
+    help_text = get_localized_description(node, preferred_lang)
+    if help_text:
+        help_item = {
+            "linkId": f"{flat_path}_helpText",
+            "type": "display",
+            "text": help_text,
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "help",
+                                "display": "Help-Button"
+                            }
+                        ],
+                        "text": "Help-Button"
+                    }
+                }
+            ]
+        }
+
+        # Add to the current item as a sub-item
+        fhir_item["item"] = [help_item]
 
     # Child items
     children = node.get("children", [])
@@ -141,7 +205,10 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
         fhir_item["type"] = "group"
         subitems = []
         for child in children:
-            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
+            #####
+            #sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
+            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=flat_path_parts, cardinality_map=cardinality_map)
+            #####
             if sub_item:
                 subitems.append(sub_item)
         if subitems:
@@ -151,7 +218,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
             return None 
     else:
         #rm_type = (node.get("rmType") or "").upper()
-        fhir_item["type"] = map_rmtype_to_fhir_type(node, fhir_version, text_types)
+        fhir_item["type"] = map_rmtype_to_fhir_type(node, fhir_version)
 
         # TODO: check if this is the correct usage of R5 types
         if fhir_item["type"] in ["choice", "open-choice", "question", "coding"]:
@@ -191,7 +258,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
 
 # see R4:
 # see R5: https://build.fhir.org/codesystem-item-type.html#item-type-question
-def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
+def map_rmtype_to_fhir_type(node, fhir_version) -> str:
     """Maps an openEHR RM Type to a corresponding FHIR Questionnaire item type."""
     rm_type = (node.get("rmType") or "").upper()
     # General mappings
@@ -208,7 +275,7 @@ def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
         "DV_COUNT": "integer",
         "DV_BOOLEAN": "boolean",
         "DV_MULTIMEDIA": "attachment",
-        "DV_URI": "reference",
+        "DV_URI": "uri",
         "DV_EHR_URI": "reference",
     }
 
@@ -224,7 +291,8 @@ def map_rmtype_to_fhir_type(node, fhir_version, text_types) -> str:
             return "question" if find_list_open(node.get("inputs", [])) else "coding"
 
     if rm_type == "DV_TEXT":
-        return node.get("annotations", {}).get("text_type") if text_types == "from_annotations" else "text"
+        #return node.get("annotations", {}).get("text_type") if text_types == "from_annotations" else "text"
+        return "text"
 
     # Default case
     return "text"
@@ -248,27 +316,66 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
                     label = next(iter(label.values()))
 
                 # TODO: replace this with a proper solution that validates when posting
-                system = "http://cistec-internal-dummy.ch/noCodes"
-                terminology = input_def.get("terminology")
+                #system = "http://cistec-internal-dummy.ch/noCodes"
+
+                ### TODO:
+                # internal coded -> answerOption (string/quantity/...), mapping to answers?
+                # external coded -> answerOption (coding); SNOMED-CT -> http://snomed.info/sct; LOINC?
+                # fhir valueset -> answerValueset
+
+                #terminology = input_def.get("terminology", "local") # set to local if no terminology found; used for atCodes
+                terminology = input_def.get("terminology") # set to local if no terminology found; used for atCodes
                 if terminology:
                     system = terminology
-                elif code_val.startswith("at"):
-                    system = "http://cistec-internal-dummy.ch/atCodes"
+                    # I think this breaks the FHIR validation, so we don't use it
+                    #if system in ["SNOMED-CT", "SNOMED", "snomed", "snomed-ct"]:
+                    #    system = "http://snomed.info/sct"
+                    #if system in ["LOINC", "loinc"]:
+                    #    system = "http://loinc.org"
 
-                coding_dict = {
+                    coding_dict = {
                     "system": system,
                     "code": code_val,
                     "display": label
-                }
+                    }
+                else:
+                    # Default to local terminology if none specified
+                    coding_dict = {
+                        # "system": # coding without system, otherwise doesn't pass validation 
+                        "code": code_val,
+                        "display": label
+                    }
+
                 # If this code is the default
-                # TODO: (maybe) use initial instead of initialSelected (seems more stable)
-                if default_value and default_value == label:
+                # TODO: use initialSelected only when true
+                if default_value and default_value == label or (default_value and default_value == code_val):
                     options.append({
                         "valueCoding": coding_dict,
                         "initialSelected": True
                     })
                 else:
                     options.append({"valueCoding": coding_dict})
+                    
+                #elif code_val.startswith("at"):
+                #    #system = "http://cistec-internal-dummy.ch/atCodes"
+                #    # use answerString for atCodes
+                #    #####
+                #    if default_value and default_value == code_val: # Note: for atCodes, default is set with that value
+                #        options.append({
+                #            "valueString": label,
+                #            "initialSelected": True
+                #        })
+                #    else:
+                #        options.append({
+                #            "valueString": label
+                #        })
+                #
+                    #options.append({
+                    #    "valueString": label,
+                    #    "initialSelected": (default_value == label) if default_value else False
+                    #})
+                    #####                    
+
     return options
 
 
@@ -371,6 +478,7 @@ def find_default_value(inputs: List[Dict[str, Any]]) -> Optional[str]:
     for inp in inputs:
         if "defaultValue" in inp:
             return inp["defaultValue"]
+    # TODO: default value (for internal coded or in general)
     return None
 
 
@@ -416,9 +524,9 @@ if __name__ == "__main__":
              "If not given, we default to 'converter'."
     )
     parser.add_argument(
-        "--text_types",
+        "--description",
         required=False,
-        help="Handling of Free text (string/text in questionnaires)."
+        help="Natural language description of the questionnaire (markdown)"
     )
 
     args = parser.parse_args()
@@ -434,8 +542,15 @@ if __name__ == "__main__":
     else:
         base_name = os.path.splitext(os.path.basename(args.input))[0]
 
+    # example command for local testing:
+    # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.blood_pressure.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
+    # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.heart_sounds_murmurs.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
+    # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.medication_order.v3.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
+
     for lang in langs:
         #out_file = f"{args.output}_{lang}.json"
+        # TODO: use name(+lang) as output if given
+        # maybe option to exclude language suffix, or no suffix when only 1 language is given
         out_file = os.path.join(args.output_folder, f"{timestamp}-{base_name}-{lang}.json")
         convert_webtemplate_to_fhir_questionnaire_json(
             input_file_path=args.input,
@@ -444,5 +559,5 @@ if __name__ == "__main__":
             fhir_version=args.fhir_version,
             name=args.name,
             publisher=args.publisher,
-            text_types=args.text_types
+            description=args.description
         )
