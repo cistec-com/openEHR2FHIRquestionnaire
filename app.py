@@ -8,6 +8,8 @@ import tempfile
 import argparse
 from datetime import datetime
 from webtemplate_to_fhir_questionnaire_json import convert_webtemplate_to_fhir_questionnaire_json
+from fill_composition_from_response import process_questionnaire_bundle
+
 
 def convert_openehr_to_fhir(
     webtemplate_file,
