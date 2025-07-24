@@ -87,58 +87,104 @@ def load_sample():
         return sample_path
     else:
         return None
+    
+def convert_questionnaire_to_openehr_composition(fhir_file):
+    if fhir_file is None:
+        return "Please upload a FHIR QuestionnaireResponse or Bundle JSON file.", None
+
+    try:
+        with open(fhir_file.name, "r", encoding="utf-8") as f:
+            fhir_json = json.load(f)
+
+        ctx_values = {
+            "ctx/template_id": "cistec.openehr.heart_sounds_murmurs.v1",
+            "ctx/language": "en",
+            "ctx/territory": "US",
+            "ctx/composer_name": "Susan Clark",
+        }
+
+        compositions = process_questionnaire_bundle(fhir_json, ctx_values=ctx_values)
+
+        output_text = ""
+        for comp in compositions:
+            output_text += f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n"
+            output_text += f"```json\n{json.dumps(comp['composition'], indent=2)}\n```"
+            output_text += "</details>\n\n"
+
+        return output_text, None
+    except Exception as e:
+        return f"Error: {str(e)}", None
 
 def create_gradio_interface():
     """Create and return the Gradio interface"""
-    with gr.Blocks(title="openEHR to FHIR Questionnaire Converter") as demo:
-        gr.Markdown("# openEHR to FHIR Questionnaire Converter")
-        gr.Markdown("""
-        This tool converts openEHR web templates (JSON) to FHIR Questionnaire resources.
-        Upload your web template and configure the conversion parameters below.
-        """)
-
-        with gr.Row():
-            with gr.Column():
-                webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
+    with gr.Blocks(title="FHIRquestionEHR") as demo:
+        with gr.Tabs():
+            with gr.TabItem("openEHR to FHIR Questionnaire Converter"):
+                gr.Markdown("# openEHR to FHIR Questionnaire Converter")
+                gr.Markdown("""
+                This tool converts openEHR web templates (JSON) to FHIR Questionnaires.
+                Upload your web template and configure the conversion parameters below.
+                """)
 
                 with gr.Row():
-                    languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
-                    fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
+                    with gr.Column():
+                        webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
 
-                with gr.Row():
-                    name = gr.Textbox(label="Name (optional)", info="Name for this questionnaire (computer friendly)")
-                    publisher = gr.Textbox(label="Publisher (optional)", info="The 'publisher' attribute for the FHIR Questionnaire")
+                        with gr.Row():
+                            languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
+                            fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
-                # TODO: add more fields, implement in app & script
-                with gr.Row():
-                    #status = gr.Radio(choices=["draft", "active", "retired", "unknown"], label="Status of the Questionnaire", value="draft", info="The 'status' attribute for the FHIR Questionnaire")
-                    #title = gr.Textbox(label="Title (optional)", info="Name for this questionnaire (human friendly)")
-                    description = gr.Textbox(label="Description (optional)", info="Natural language description of the questionnaire (markdown)")
+                        with gr.Row():
+                            name = gr.Textbox(label="Name (optional)", info="Name for this questionnaire (computer friendly)")
+                            publisher = gr.Textbox(label="Publisher (optional)", info="The 'publisher' attribute for the FHIR Questionnaire")
 
-                with gr.Row():
-                    load_sample_btn = gr.Button("Load Sample")
-                    convert_btn = gr.Button("Convert to FHIR", variant="primary")
+                        # TODO: add more fields, implement in app & script
+                        with gr.Row():
+                            #status = gr.Radio(choices=["draft", "active", "retired", "unknown"], label="Status of the Questionnaire", value="draft", info="The 'status' attribute for the FHIR Questionnaire")
+                            #title = gr.Textbox(label="Title (optional)", info="Name for this questionnaire (human friendly)")
+                            description = gr.Textbox(label="Description (optional)", info="Natural language description of the questionnaire (markdown)")
 
-            with gr.Column():
-                download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
-                
-                with gr.Accordion("Conversion Result", open=True):
-                     output = gr.Markdown()
+                        with gr.Row():
+                            load_sample_btn = gr.Button("Load Sample")
+                            convert_btn = gr.Button("Convert to FHIR", variant="primary")
 
-        convert_btn.click(
-            fn=convert_openehr_to_fhir,
-            inputs=[webtemplate_file, languages, fhir_version, name, publisher, description],
-            outputs=[output, download_files]
-        )
+                    with gr.Column():
+                        download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
+                        
+                        with gr.Accordion("Conversion Result", open=True):
+                            output = gr.Markdown()
 
-        if os.path.exists(os.path.join(os.path.dirname(__file__), "samples")):
-            load_sample_btn.click(
-                fn=load_sample,
-                inputs=None,
-                outputs=webtemplate_file
-            )
-        else:
-            load_sample_btn.visible = False
+                convert_btn.click(
+                    fn=convert_openehr_to_fhir,
+                    inputs=[webtemplate_file, languages, fhir_version, name, publisher, description],
+                    outputs=[output, download_files]
+                )
+
+                if os.path.exists(os.path.join(os.path.dirname(__file__), "samples")):
+                    load_sample_btn.click(
+                        fn=load_sample,
+                        inputs=None,
+                        outputs=webtemplate_file
+                    )
+                else:
+                    load_sample_btn.visible = False
+
+            with gr.TabItem("FHIR QuestionnaireResponse to openEHR FLAT Composition Converter"):
+                gr.Markdown("# FHIR QuestionnaireResponse to openEHR FLAT Composition Converter")
+                gr.Markdown("""
+                This tool converts FHIR QuestionnaireResponses to openEHR FLAT Compositions.
+                Upload your FHIR QuestionnaireResponse and configure the conversion parameters below.
+                """)
+
+                fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
+                convert_qr_btn = gr.Button("Convert to openEHR", variant="primary")
+                comp_output = gr.Markdown(label="Result")
+
+                convert_qr_btn.click(
+                    fn=convert_questionnaire_to_openehr_composition,
+                    inputs=fhir_input_file,
+                    outputs=[comp_output, gr.File(visible=False)]
+                )
 
     return demo
 
