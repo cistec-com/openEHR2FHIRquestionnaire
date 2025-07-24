@@ -1,0 +1,173 @@
+import json
+from typing import Dict, List, Any, Optional
+from collections import defaultdict
+import argparse
+from datetime import datetime, timezone
+import os
+
+
+def process_questionnaire_bundle(bundle_json: dict, ctx_values: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
+    compositions = []
+
+    for entry in bundle_json.get("entry", []):
+        resource = entry.get("resource", {})
+        if resource.get("resourceType") == "Practitioner":
+            practitioner_id = resource.get("id", "")
+        elif resource.get("resourceType") == "Encounter":
+            encounter_id = resource.get("id", "") # visit number (?)
+        elif resource.get("resourceType") == "QuestionnaireResponse":
+            print(f"Processing QuestionnaireResponse: {resource.get('id', 'unknown')}")
+            qr = resource
+            questionnaire_ref = qr.get("questionnaire", "")
+            composition = convert_fhir_to_openehr_flat(qr, ctx_values=ctx_values)
+            compositions.append({
+                "questionnaire": questionnaire_ref,
+                "composition": composition
+            })
+        else:
+            continue
+
+    return compositions
+
+def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any],
+                                  ctx_values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    composition = {}
+    if ctx_values:
+        composition.update(ctx_values)
+
+    #group_counters = defaultdict(int)  # Keeps count of group-level indices
+    #group_stack = []  # Stack of current parent groups
+
+    def process_items(items: List[Dict[str, Any]], parent_path: str = ""):
+        grouped_by_link = defaultdict(list)
+        for item in items:
+            grouped_by_link[item["linkId"]].append(item)
+
+        #print(f"Processing items with parent path: {parent_path}")
+        #print("Grouped items by linkId:")
+        #for k, v in grouped_by_link.items():
+        #    print(k, v)
+
+        for link_id, group_items in grouped_by_link.items():
+            for index, item in enumerate(group_items):
+                # Only append index if repeated group
+                last_part = link_id.split("/")[-1]
+                if len(group_items) > 1:
+                    path = f"{parent_path}/{last_part}:{index}" if parent_path else f"{link_id}:{index}"
+                else:
+                    path = f"{parent_path}/{last_part}" if parent_path else link_id
+                #if len(group_items) > 1:
+                #    path = f"{link_id}:{index}"
+                #else:
+                #    path = link_id
+
+                process_item(item, path)
+
+    def process_item(item: Dict[str, Any], path: str):
+        # Answers
+        if "answer" in item:
+            answers = item["answer"]
+            for idx, answer in enumerate(answers):
+                final_path = f"{path}:{idx}" if len(answers) > 1 else path
+                process_answer(final_path, answer)
+
+        # Nested items
+        if "item" in item:
+            process_items(item["item"], parent_path=path)
+
+    def process_answer(path: str, answer: Dict[str, Any]):
+        if 'valueQuantity' in answer:
+            quantity = answer['valueQuantity']
+            composition[f"{path}|magnitude"] = quantity.get('value')
+            composition[f"{path}|unit"] = quantity.get('unit')
+            composition[f"{path}|precision"] = quantity.get('precision', 0)
+        elif 'valueCoding' in answer:
+            coding = answer['valueCoding']
+            composition[f"{path}|value"] = coding.get('display')
+            composition[f"{path}|code"] = coding.get('code')
+            composition[f"{path}|terminology"] = coding.get('system', 'local')
+        elif 'valueString' in answer:
+            composition[path] = answer['valueString']
+        elif 'valueBoolean' in answer:
+            composition[path] = answer['valueBoolean']
+        elif 'valueInteger' in answer:
+            composition[path] = answer['valueInteger']
+        elif 'valueDecimal' in answer:
+            composition[path] = answer['valueDecimal']
+        elif 'valueDate' in answer:
+            composition[path] = answer['valueDate']
+        elif 'valueDateTime' in answer:
+            composition[path] = answer['valueDateTime']
+        elif 'valueTime' in answer:
+            composition[path] = answer['valueTime']
+        elif 'valueUri' in answer:
+            composition[path] = answer['valueUri']
+        elif 'valueReference' in answer:
+            reference = answer['valueReference']
+            composition[path] = reference.get('reference')
+
+    # Kick off the process
+    if "item" in questionnaire_response:
+        process_items(questionnaire_response["item"])
+
+    return composition
+
+# Run the example
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Creates an openEHR composition from a questionnaireResponse."
+    )
+    parser.add_argument("--input", help="Path to the input questionnaireResponse JSON file")
+    parser.add_argument(
+        "--output",
+        required=False,
+        help="Base name for the output FHIR Questionnaire JSON"
+    )
+    parser.add_argument(
+        "--output_folder",
+        required=False,
+        default=".",
+        help="Output folder path"
+    )
+
+    args = parser.parse_args()
+
+    if not args.input:
+        #args.input = "../outputs/questionnaires/testing/20251007_0907-heart_sounds_response.json"  # Default input file if not provided
+        #args.input = "../outputs/questionnaires/testing/20251007_0924-medication_order_response.json"
+        ### bundle:
+        args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted.json"
+
+
+    # You can choose how to handle the output naming convention. For example:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    # set (default) output base name:
+    if args.output:
+        base_name = args.output
+    else:
+        base_name = os.path.splitext(os.path.basename(args.input))[0]
+
+    # example command for local testing:
+    # python fill_composition_from_response.py --input ../outputs/questionnaires/testing/cistec.openehr.blood_pressure.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
+
+    ctx_values = {
+        "ctx/template_id": "cistec.openehr.heart_sounds_murmurs.v1",
+        "ctx/language": "en",
+        "ctx/territory": "US",
+        "ctx/composer_name": "Susan Clark", # author
+    }
+    
+    # Convert to openEHR composition
+    fhir_response = json.load(open(args.input, 'r', encoding='utf-8'))
+    #compositions = convert_fhir_to_openehr_flat(fhir_response, ctx_values)
+    compositions = process_questionnaire_bundle(fhir_response, ctx_values=ctx_values)
+
+    # Print the result
+    print("openEHR Composition(s) (FLAT format):")
+    #print(json.dumps(compositions, indent=2))
+    for comp in compositions:
+        print(json.dumps(comp, indent=2))
+    #print(json.dumps(fhir_response, indent=2))
+
+    #out_file = os.path.join(args.output_folder, f"{timestamp}-{base_name}-{lang}.json")
