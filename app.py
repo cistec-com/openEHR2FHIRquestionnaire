@@ -90,7 +90,7 @@ def load_sample():
     else:
         return None
     
-def convert_questionnaire_to_openehr_composition(fhir_file):
+def convert_questionnaire_to_openehr_composition(fhir_file, ctx_setting):
     if fhir_file is None:
         return "Please upload a FHIR QuestionnaireResponse or Bundle JSON file.", []
 
@@ -98,7 +98,7 @@ def convert_questionnaire_to_openehr_composition(fhir_file):
         with open(fhir_file.name, "r", encoding="utf-8") as f:
             fhir_json = json.load(f)
 
-        compositions = process_questionnaire_bundle(fhir_json, ctx_setting=None)
+        compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting)
 
         output_text = ""
         download_files = []
