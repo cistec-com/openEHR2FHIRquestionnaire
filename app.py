@@ -180,12 +180,17 @@ def create_gradio_interface():
 
                 fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
                 convert_qr_btn = gr.Button("Convert to openEHR", variant="primary")
-                comp_output = gr.Markdown(label="Result")
+                #comp_output = gr.Markdown(label="Result")
+
+                download_comps = gr.File(label="Download openEHR Compositions", file_count="multiple", type="binary")
+                
+                with gr.Accordion("Generated Compositions", open=True):
+                    comp_output = gr.Markdown()
 
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
                     inputs=fhir_input_file,
-                    outputs=[comp_output, gr.File(visible=False)]
+                    outputs=[comp_output, download_comps, gr.File(visible=False)]
                 )
 
     return demo
