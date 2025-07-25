@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import time
 from collections import OrderedDict
+import re
 
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
@@ -61,18 +62,26 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 2) Build the FHIR Questionnaire
     questionnaire = {
         "resourceType": "Questionnaire",
-        "id": template_id.replace("_", "-"),
+        #"id": template_id.replace("_", "-"),
         #"language": preferred_lang,
         "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{id}",
+        "version": "1.0.0",
+        ### meta: Useful for dev/debug purposes. can store the exact timestamp or Git hash of the template or conversion logic.
         #"meta": {
-        #    "profile": [profile]
+        #    "tag": [
+        #        {
+        #        "system": "https://example.org/tags",
+        #        "code": "from-openehr",
+        #        "display": "Generated from openEHR template"
+        #        }
+        #    ]
         #},
-        #"identifier": [
-        #    {
-        #        "system": "http://example.org/fhir/identifiers",
-        #        "value": f"{preferred_lang}-{id}"
-        #    }
-        #],
+        "identifier": [
+            {
+                "system": "http://example.org/openEHR/templates",
+                "value": template_id
+            }
+        ],
         "name": name if name else top_level_name.replace(' ', ''),
         "title": top_level_name or root_node.get("name", "Unnamed Template"),
         "status": "draft",
@@ -227,6 +236,11 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
             answer_options = build_answer_options(node, preferred_lang, default_val)
             if answer_options:
                 fhir_item["answerOption"] = answer_options
+                #print(len(answer_options), "answer options found for", fhir_item["linkId"])
+                #if len(answer_options) == 1:
+                #    fhir_item["answerValueSet"] = answer_options
+                #if len(answer_options) > 1:
+                #    fhir_item["answerOption"] = answer_options
 
         elif fhir_item["type"] == "quantity":
             build_quantity_with_unit_options(fhir_item, node)
@@ -305,6 +319,16 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
     options = []
     inputs = node.get("inputs", [])
     for input_def in inputs:
+        terminology = input_def.get("terminology")
+        if terminology and "fhir.org" in terminology:
+            # Normalize and clean URL
+            match = re.search(r"(http[s]?://[^$]+/ValueSet/[^&]+)", terminology)
+            if match:
+                value_set_url = match.group(1)
+                #fhir_item["answerValueSet"] = value_set_url
+                options.append({
+                    "answerValueSet": value_set_url
+                })
         if "list" in input_def:
             for option in input_def["list"]:
                 code_val = option.get("value", "")
@@ -374,7 +398,7 @@ def build_answer_options(node: Dict[str, Any], preferred_lang: str, default_valu
                     #    "valueString": label,
                     #    "initialSelected": (default_value == label) if default_value else False
                     #})
-                    #####                    
+                    #####                
 
     return options
 
