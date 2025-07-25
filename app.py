@@ -98,14 +98,7 @@ def convert_questionnaire_to_openehr_composition(fhir_file):
         with open(fhir_file.name, "r", encoding="utf-8") as f:
             fhir_json = json.load(f)
 
-        ctx_values = {
-            "ctx/template_id": "cistec.openehr.heart_sounds_murmurs.v1",
-            "ctx/language": "en",
-            "ctx/territory": "US",
-            "ctx/composer_name": "Susan Clark",
-        }
-
-        compositions = process_questionnaire_bundle(fhir_json, ctx_values=ctx_values)
+        compositions = process_questionnaire_bundle(fhir_json, ctx_setting=None)
 
         output_text = ""
         download_files = []
@@ -195,6 +188,27 @@ def create_gradio_interface():
                 """)
 
                 fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
+                care_setting = gr.Dropdown(
+                    label="Care setting",
+                    choices=[
+                        ("225 - home", "225"),
+                        ("227 - emergency care", "227"),
+                        ("228 - primary medical care", "228"),
+                        ("229 - primary nursing care", "229"),
+                        ("230 - primary allied health care", "230"),
+                        ("231 - midwifery care", "231"),
+                        ("232 - secondary medical care", "232"),
+                        ("233 - secondary nursing care", "233"),
+                        ("234 - secondary allied health care", "234"),
+                        ("235 - complementary health care", "235"),
+                        ("236 - dental care", "236"),
+                        ("237 - nursing home care", "237"),
+                        ("802 - mental healthcare", "802"),
+                        ("238 - other care", "238"),
+                    ],
+                    value="238",  # default to "other care"
+                    interactive=True
+                )
                 convert_qr_btn = gr.Button("Convert to openEHR", variant="primary")
                 #comp_output = gr.Markdown(label="Result")
 
@@ -205,7 +219,7 @@ def create_gradio_interface():
 
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
-                    inputs=fhir_input_file,
+                    inputs=[fhir_input_file, care_setting],
                     outputs=[comp_output, download_comps]
                 )
 
