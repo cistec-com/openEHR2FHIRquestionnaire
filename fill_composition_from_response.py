@@ -10,6 +10,15 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_values: Optional[Dict[st
     """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
     compositions = []
 
+    if bundle_json.get("resourceType") == "QuestionnaireResponse":
+        composition = convert_fhir_to_openehr_flat(bundle_json, ctx_values=ctx_values)
+        questionnaire_ref = bundle_json.get("questionnaire", "")
+        compositions.append({
+            "questionnaire": questionnaire_ref,
+            "composition": composition
+        })
+        return compositions # early return if single QuestionnaireResponse (in [] anyway)
+
     for entry in bundle_json.get("entry", []):
         resource = entry.get("resource", {})
         if resource.get("resourceType") == "Practitioner":
@@ -136,6 +145,7 @@ if __name__ == "__main__":
     if not args.input:
         #args.input = "../outputs/questionnaires/testing/20251007_0907-heart_sounds_response.json"  # Default input file if not provided
         #args.input = "../outputs/questionnaires/testing/20251007_0924-medication_order_response.json"
+        #args.input = "../outputs/questionnaires/testing/20250725-1032_BloodPressure_Response.json"
         ### bundle:
         args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted.json"
 
