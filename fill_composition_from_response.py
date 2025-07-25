@@ -7,12 +7,12 @@ import os
 import requests
 import locale
 
-def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None) -> List[Dict[str, Any]]:
+def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None, ctx_territory=None) -> List[Dict[str, Any]]:
     """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
     compositions = []
 
     if bundle_json.get("resourceType") == "QuestionnaireResponse":
-        composition = convert_fhir_to_openehr_flat(bundle_json, ctx_setting=ctx_setting)
+        composition = convert_fhir_to_openehr_flat(bundle_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
         questionnaire_ref = bundle_json.get("questionnaire", "")
         compositions.append({
             "questionnaire": questionnaire_ref,
@@ -30,7 +30,7 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None) -> List[Di
             print(f"Processing QuestionnaireResponse: {resource.get('id', 'unknown')}")
             qr = resource
             questionnaire_ref = qr.get("questionnaire", "")
-            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting)
+            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
             compositions.append({
                 "questionnaire": questionnaire_ref,
                 "composition": composition
@@ -40,22 +40,22 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None) -> List[Di
 
     return compositions
 
-def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None) -> Dict[str, Any]:
+def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None) -> Dict[str, Any]:
     composition = {}
 
     questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
     metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
 
     composer_name = questionnaire_response.get("author", {}).get("display", "Unknown Author")
-    territory = locale.getdefaultlocale()  # e.g., ('en_US', 'UTF-8')
-    if territory and '_' in territory[0]:
-        territory = territory[0].split('_')[1]  # → "US"
-    #else:
-    #    territory = "US"  # fallback default
+    ### NOTE: doesn't work for gradio/huggingface
+    if not ctx_territory:
+        ctx_territory = locale.getdefaultlocale()  # e.g., ('en_US', 'UTF-8')
+        if ctx_territory and '_' in ctx_territory[0]:
+            ctx_territory = ctx_territory[0].split('_')[1]  # → "US"
 
     ctx_values = {
         "ctx/template_id": metadata_questionnaire["template_id"],
-        "ctx/territory": territory,
+        "ctx/territory": ctx_territory,
         "ctx/language": metadata_questionnaire["language"],
         "ctx/composer_name": composer_name,  # author
         #"ctx/setting":
@@ -187,6 +187,12 @@ if __name__ == "__main__":
         help="Care setting for the openEHR composition, either 3-digit code or description (example: 228 / primary medical care)"
     )
     parser.add_argument(
+        "--territory",
+        required=False,
+        help="Territory: 2-character code according to ISO 3166-1 (example: 'US')." \
+        "If not provided, will default to 'US'" \
+    )
+    parser.add_argument(
         "--output",
         required=False,
         help="Base name for the output FHIR Questionnaire JSON"
@@ -222,7 +228,7 @@ if __name__ == "__main__":
     # Convert to openEHR composition
     fhir_response = json.load(open(args.input, 'r', encoding='utf-8'))
     #compositions = convert_fhir_to_openehr_flat(fhir_response)
-    compositions = process_questionnaire_bundle(fhir_response, ctx_setting=args.care_setting)
+    compositions = process_questionnaire_bundle(fhir_response, ctx_setting=args.care_setting, ctx_territory=args.territory)
 
     # Print the result
     print("openEHR Composition(s) (FLAT format):")
