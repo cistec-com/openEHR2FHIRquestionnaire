@@ -92,7 +92,7 @@ def load_sample():
     
 def convert_questionnaire_to_openehr_composition(fhir_file):
     if fhir_file is None:
-        return "Please upload a FHIR QuestionnaireResponse or Bundle JSON file.", None
+        return "Please upload a FHIR QuestionnaireResponse or Bundle JSON file.", []
 
     try:
         with open(fhir_file.name, "r", encoding="utf-8") as f:
@@ -108,14 +108,30 @@ def convert_questionnaire_to_openehr_composition(fhir_file):
         compositions = process_questionnaire_bundle(fhir_json, ctx_values=ctx_values)
 
         output_text = ""
-        for comp in compositions:
-            output_text += f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n"
-            output_text += f"```json\n{json.dumps(comp['composition'], indent=2)}\n```"
-            output_text += "</details>\n\n"
+        download_files = []
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        base_name = os.path.splitext(os.path.basename(fhir_file.name))[0]
+        temp_dir = tempfile.mkdtemp()
 
-        return output_text, None
+        for i, comp in enumerate(compositions):
+            comp_json = json.dumps(comp["composition"], indent=2)
+            filename = f"{timestamp}-{base_name}-{i+1}.json"
+            filepath = os.path.join(temp_dir, filename)
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(comp_json)
+
+            download_files.append(filepath)
+
+            output_text += (
+                f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n"
+                f"```json\n{comp_json}\n```"
+                f"\n</details>\n\n"
+            )
+
+        return output_text, download_files
     except Exception as e:
-        return f"Error: {str(e)}", None
+        return f"Error: {str(e)}", []
 
 def create_gradio_interface():
     """Create and return the Gradio interface"""
@@ -190,7 +206,7 @@ def create_gradio_interface():
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
                     inputs=fhir_input_file,
-                    outputs=[comp_output, download_comps, gr.File(visible=False)]
+                    outputs=[comp_output, download_comps]
                 )
 
     return demo
