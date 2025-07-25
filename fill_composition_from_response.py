@@ -4,14 +4,15 @@ from collections import defaultdict
 import argparse
 from datetime import datetime, timezone
 import os
+import requests
+import locale
 
-
-def process_questionnaire_bundle(bundle_json: dict, ctx_values: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None) -> List[Dict[str, Any]]:
     """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
     compositions = []
 
     if bundle_json.get("resourceType") == "QuestionnaireResponse":
-        composition = convert_fhir_to_openehr_flat(bundle_json, ctx_values=ctx_values)
+        composition = convert_fhir_to_openehr_flat(bundle_json, ctx_setting=ctx_setting)
         questionnaire_ref = bundle_json.get("questionnaire", "")
         compositions.append({
             "questionnaire": questionnaire_ref,
@@ -29,7 +30,7 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_values: Optional[Dict[st
             print(f"Processing QuestionnaireResponse: {resource.get('id', 'unknown')}")
             qr = resource
             questionnaire_ref = qr.get("questionnaire", "")
-            composition = convert_fhir_to_openehr_flat(qr, ctx_values=ctx_values)
+            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting)
             compositions.append({
                 "questionnaire": questionnaire_ref,
                 "composition": composition
@@ -39,11 +40,31 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_values: Optional[Dict[st
 
     return compositions
 
-def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any],
-                                  ctx_values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None) -> Dict[str, Any]:
     composition = {}
-    if ctx_values:
-        composition.update(ctx_values)
+
+    questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
+    metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
+
+    composer_name = questionnaire_response.get("author", {}).get("display", "Unknown Author")
+    territory = locale.getdefaultlocale()  # e.g., ('en_US', 'UTF-8')
+    if territory and '_' in territory[0]:
+        territory = territory[0].split('_')[1]  # → "US"
+    #else:
+    #    territory = "US"  # fallback default
+
+    ctx_values = {
+        "ctx/template_id": metadata_questionnaire["template_id"],
+        "ctx/territory": territory,
+        "ctx/language": metadata_questionnaire["language"],
+        "ctx/composer_name": composer_name,  # author
+        #"ctx/setting":
+    }
+
+    if ctx_setting:
+        ctx_values["ctx/setting"] = ctx_setting
+
+    composition.update(ctx_values)
 
     #group_counters = defaultdict(int)  # Keeps count of group-level indices
     #group_stack = []  # Stack of current parent groups
@@ -122,12 +143,49 @@ def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any],
 
     return composition
 
+def fetch_questionnaire_from_server(canonical_url: str) -> dict:
+    #base_url, sep, version = canonical_url.partition("|")
+
+    try:
+        response = requests.get(canonical_url)
+        response.raise_for_status()
+        questionnaire = response.json()
+
+        # Optional: verify version
+        #if version and questionnaire.get("version") != version:
+        #    raise ValueError(f"Version mismatch: expected {version}, got {questionnaire.get('version')}")
+
+        return questionnaire
+
+    except requests.RequestException as e:
+        raise RuntimeError(f"Failed to fetch Questionnaire: {e}")
+
+def extract_metadata_from_questionnaire(questionnaire: dict):
+    # Extract template ID from identifier
+    template_id = None
+    for idf in questionnaire.get("identifier", []):
+        if idf.get("system") == "http://example.org/openEHR/templates":
+            template_id = idf.get("value")
+            break
+
+    language = questionnaire.get("language", "en")
+
+    return {
+        "template_id": template_id,
+        "language": language
+    }
+
 # Run the example
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Creates an openEHR composition from a questionnaireResponse."
     )
     parser.add_argument("--input", help="Path to the input questionnaireResponse JSON file")
+    parser.add_argument(
+        "--care_setting",
+        required=False,
+        help="Care setting for the openEHR composition, either 3-digit code or description (example: 228 / primary medical care)"
+    )
     parser.add_argument(
         "--output",
         required=False,
@@ -145,9 +203,9 @@ if __name__ == "__main__":
     if not args.input:
         #args.input = "../outputs/questionnaires/testing/20251007_0907-heart_sounds_response.json"  # Default input file if not provided
         #args.input = "../outputs/questionnaires/testing/20251007_0924-medication_order_response.json"
-        #args.input = "../outputs/questionnaires/testing/20250725-1032_BloodPressure_Response.json"
+        args.input = "../outputs/questionnaires/testing/20250725-1032_BloodPressure_Response.json"
         ### bundle:
-        args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted.json"
+        #args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted.json"
 
 
     # You can choose how to handle the output naming convention. For example:
@@ -160,18 +218,11 @@ if __name__ == "__main__":
 
     # example command for local testing:
     # python fill_composition_from_response.py --input ../outputs/questionnaires/testing/cistec.openehr.blood_pressure.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
-
-    ctx_values = {
-        "ctx/template_id": "cistec.openehr.heart_sounds_murmurs.v1",
-        "ctx/language": "en",
-        "ctx/territory": "US",
-        "ctx/composer_name": "Susan Clark", # author
-    }
     
     # Convert to openEHR composition
     fhir_response = json.load(open(args.input, 'r', encoding='utf-8'))
-    #compositions = convert_fhir_to_openehr_flat(fhir_response, ctx_values)
-    compositions = process_questionnaire_bundle(fhir_response, ctx_values=ctx_values)
+    #compositions = convert_fhir_to_openehr_flat(fhir_response)
+    compositions = process_questionnaire_bundle(fhir_response, ctx_setting=args.care_setting)
 
     # Print the result
     print("openEHR Composition(s) (FLAT format):")
