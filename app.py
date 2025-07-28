@@ -17,6 +17,7 @@ def extract_languages_from_template(file_obj):
     try:
         with open(file_obj.name, "r", encoding="utf-8") as f:
             template = json.load(f)
+        print("Extracting languages from:", file_obj.name)
         langs = template.get("languages", [])
         default = template.get("defaultLanguage", None)
         default_value = [default] if default in langs else []
