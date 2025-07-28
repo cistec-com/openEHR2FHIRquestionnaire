@@ -24,7 +24,8 @@ def extract_languages_from_template(file_obj):
         print("language 1:", langs[0])
         print("Default language:", default)
 
-        return langs, default_value
+        #return langs, default_value
+        return gr.CheckboxGroup.update(choices=langs, value=default_value)
     except Exception as e:
         return [], []
 
@@ -195,12 +196,6 @@ def create_gradio_interface():
                         with gr.Accordion("Conversion Result", open=True):
                             output = gr.Markdown()
 
-                webtemplate_file.upload(
-                    fn=extract_languages_from_template,
-                    inputs=webtemplate_file,
-                    outputs=[language_selector, language_selector]
-                )
-
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
                     inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description],
@@ -215,6 +210,12 @@ def create_gradio_interface():
                     )
                 else:
                     load_sample_btn.visible = False
+
+                webtemplate_file.upload(
+                    fn=extract_languages_from_template,
+                    inputs=webtemplate_file,
+                    outputs=[language_selector]
+                )
 
             with gr.TabItem("FHIR QuestionnaireResponse to openEHR FLAT Composition Converter"):
                 gr.Markdown("# FHIR QuestionnaireResponse to openEHR FLAT Composition Converter")
