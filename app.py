@@ -21,6 +21,9 @@ def extract_languages_from_template(file_obj):
         langs = template.get("languages", [])
         default = template.get("defaultLanguage", None)
         default_value = [default] if default in langs else []
+        print("language 1:", langs[0])
+        print("Default language:", default)
+
         return langs, default_value
     except Exception as e:
         return [], []
@@ -192,7 +195,7 @@ def create_gradio_interface():
                         with gr.Accordion("Conversion Result", open=True):
                             output = gr.Markdown()
 
-                webtemplate_file.change(
+                webtemplate_file.upload(
                     fn=extract_languages_from_template,
                     inputs=webtemplate_file,
                     outputs=[language_selector, language_selector]
