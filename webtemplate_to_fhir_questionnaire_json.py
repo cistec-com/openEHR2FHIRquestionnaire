@@ -13,6 +13,8 @@ import time
 from collections import OrderedDict
 import re
 
+from pycountry import languages
+
 def convert_webtemplate_to_fhir_questionnaire_json(
     input_file_path: str,
     output_file_path: str,
@@ -556,7 +558,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Split languages on commas
-    langs = [lang.strip() for lang in args.languages.split(",")]
+    if isinstance(args.languages, str):
+        langs = [lang.strip() for lang in args.languages.split(",")]
+    elif isinstance(args.languages, list):
+        langs = args.languages
+    else:
+        langs = ["en"]
 
     # You can choose how to handle the output naming convention. For example:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")

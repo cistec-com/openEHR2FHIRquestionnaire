@@ -11,9 +11,22 @@ from webtemplate_to_fhir_questionnaire_json import convert_webtemplate_to_fhir_q
 from fill_composition_from_response import process_questionnaire_bundle
 import pycountry
 
+def extract_languages_from_template(file_obj):
+    if file_obj is None:
+        return [], []
+    try:
+        with open(file_obj.name, "r", encoding="utf-8") as f:
+            template = json.load(f)
+        langs = template.get("languages", [])
+        default = template.get("defaultLanguage", None)
+        default_value = [default] if default in langs else []
+        return langs, default_value
+    except Exception as e:
+        return [], []
+
 def convert_openehr_to_fhir(
     webtemplate_file,
-    languages="en",
+    languages=["en"],
     fhir_version="R4",
     name=None,
     publisher=None,
@@ -29,7 +42,8 @@ def convert_openehr_to_fhir(
     temp_dir = tempfile.mkdtemp()
 
     # Split languages
-    langs = [lang.strip() for lang in languages.split(",")]
+    #langs = [lang.strip() for lang in languages.split(",")]
+    langs = languages
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     base_name = os.path.splitext(os.path.basename(webtemplate_file.name))[0]
@@ -147,7 +161,20 @@ def create_gradio_interface():
                         webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
 
                         with gr.Row():
-                            languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
+                            #languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
+                            language_selector = gr.CheckboxGroup(
+                                label="Select languages",
+                                choices=[],
+                                value=[],
+                                interactive=True
+                            )
+
+                            webtemplate_file.change(
+                                fn=extract_languages_from_template,
+                                inputs=webtemplate_file,
+                                outputs=[language_selector, language_selector]
+                            )
+
                             fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                         with gr.Row():
@@ -172,7 +199,7 @@ def create_gradio_interface():
 
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
-                    inputs=[webtemplate_file, languages, fhir_version, name, publisher, description],
+                    inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description],
                     outputs=[output, download_files]
                 )
 
@@ -216,7 +243,7 @@ def create_gradio_interface():
                 )
 
                 territory = gr.Dropdown(
-                    label="Territory (ISO 3166-1)",
+                    label="Territory (ISO 3166-1). Defaults to 'US' if not provided.",
                     choices=iso_territories,
                     interactive=True
                 )
