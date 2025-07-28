@@ -13,7 +13,7 @@ import pycountry
 
 def extract_languages_from_template(file_obj):
     if file_obj is None:
-        return [], []
+        return gr.CheckboxGroup(choices=[], value=[])
     try:
         with open(file_obj.name, "r", encoding="utf-8") as f:
             template = json.load(f)
@@ -25,9 +25,9 @@ def extract_languages_from_template(file_obj):
         print("Default language:", default)
 
         #return langs, default_value
-        return gr.CheckboxGroup.update(choices=langs, value=default_value)
+        return gr.CheckboxGroup(choices=langs, value=default_value)
     except Exception as e:
-        return [], []
+        return gr.CheckboxGroup(choices=[], value=[])
 
 def convert_openehr_to_fhir(
     webtemplate_file,
