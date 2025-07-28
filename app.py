@@ -169,12 +169,6 @@ def create_gradio_interface():
                                 interactive=True
                             )
 
-                            webtemplate_file.change(
-                                fn=extract_languages_from_template,
-                                inputs=webtemplate_file,
-                                outputs=[language_selector, language_selector]
-                            )
-
                             fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                         with gr.Row():
@@ -196,6 +190,12 @@ def create_gradio_interface():
                         
                         with gr.Accordion("Conversion Result", open=True):
                             output = gr.Markdown()
+
+                webtemplate_file.change(
+                    fn=extract_languages_from_template,
+                    inputs=webtemplate_file,
+                    outputs=[language_selector, language_selector]
+                )
 
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
