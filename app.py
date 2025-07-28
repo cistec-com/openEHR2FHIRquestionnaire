@@ -128,6 +128,11 @@ def convert_questionnaire_to_openehr_composition(fhir_file, ctx_setting, ctx_ter
 
 def create_gradio_interface():
     """Create and return the Gradio interface"""
+    iso_territories = sorted(
+        [(f"{country.name} ({country.alpha_2})", country.alpha_2)
+        for country in pycountry.countries],
+        key=lambda x: x[0]
+    )
     with gr.Blocks(title="FHIRquestionEHR") as demo:
         with gr.Tabs():
             with gr.TabItem("openEHR to FHIR Questionnaire Converter"):
@@ -209,11 +214,7 @@ def create_gradio_interface():
                     value="238",  # default to "other care"
                     interactive=True
                 )
-                iso_territories = sorted(
-                    [(f"{country.name} ({country.alpha_2})", country.alpha_2)
-                    for country in pycountry.countries],
-                    key=lambda x: x[0]
-                )
+
                 territory = gr.Dropdown(
                     label="Territory (ISO 3166-1)",
                     choices=iso_territories,
