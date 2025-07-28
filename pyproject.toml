@@ -9,7 +9,7 @@ authors = [
     {name = "Cistec AG"}
 ]
 dependencies = [
-    "gradio>=4.19.2",
+    "gradio>=4.44.1",
     "python-dateutil>=2.8.2"
 ]
 
