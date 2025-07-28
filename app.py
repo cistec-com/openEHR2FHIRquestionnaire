@@ -165,8 +165,8 @@ def create_gradio_interface():
                             #languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
                             language_selector = gr.CheckboxGroup(
                                 label="Select languages",
-                                choices=[],
-                                value=[],
+                                choices=["en", "de"],
+                                value=["en"],
                                 interactive=True
                             )
 
