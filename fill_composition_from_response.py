@@ -7,7 +7,7 @@ import os
 import requests
 import locale
 
-def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None, ctx_territory=None) -> List[Dict[str, Any]]:
+def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_territory=None) -> List[Dict[str, Any]]:
     """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
     compositions = []
 
@@ -30,7 +30,7 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None, ctx_territ
             print(f"Processing QuestionnaireResponse: {resource.get('id', 'unknown')}")
             qr = resource
             questionnaire_ref = qr.get("questionnaire", "")
-            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
+            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting, ctx_territory=ctx_territory, ctx_author=practitioner_id)
             compositions.append({
                 "questionnaire": questionnaire_ref,
                 "composition": composition
@@ -40,13 +40,15 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting=None, ctx_territ
 
     return compositions
 
-def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None) -> Dict[str, Any]:
+def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None, ctx_author=None) -> Dict[str, Any]:
     composition = {}
 
     questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
     metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
 
-    composer_name = questionnaire_response.get("author", {}).get("display", "Unknown Author")
+    if not ctx_author:
+        ctx_author = questionnaire_response.get("author", {}).get("display", "Unknown Author")
+
     ### NOTE: doesn't work for gradio/huggingface
     if not ctx_territory:
         ctx_territory = locale.getdefaultlocale()  # e.g., ('en_US', 'UTF-8')
@@ -57,7 +59,7 @@ def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_set
         "ctx/template_id": metadata_questionnaire["template_id"],
         "ctx/territory": ctx_territory,
         "ctx/language": metadata_questionnaire["language"],
-        "ctx/composer_name": composer_name,  # author
+        "ctx/composer_name": ctx_author,  # author
         #"ctx/setting":
     }
 
@@ -195,7 +197,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output",
         required=False,
-        help="Base name for the output FHIR Questionnaire JSON"
+        help="Base name for the output questionnaireResponse"
     )
     parser.add_argument(
         "--output_folder",
@@ -207,11 +209,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.input:
+        ### individual questionnaire responses:
         #args.input = "../outputs/questionnaires/testing/20251007_0907-heart_sounds_response.json"  # Default input file if not provided
         #args.input = "../outputs/questionnaires/testing/20251007_0924-medication_order_response.json"
-        args.input = "../outputs/questionnaires/testing/20250725-1032_BloodPressure_Response.json"
-        ### bundle:
+        #args.input = "../outputs/questionnaires/testing/20250725-1032_BloodPressure_Response.json"
+        ### bundles:
         #args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted.json"
+        args.input = "../outputs/questionnaires/testing/Bundle-CollectionBundleK6_adapted2.json"
 
 
     # You can choose how to handle the output naming convention. For example:

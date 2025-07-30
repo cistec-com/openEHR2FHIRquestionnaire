@@ -22,7 +22,8 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     fhir_version: str = "R4",
     name: Optional[str] = None,
     publisher: Optional[str] = None,
-    description: Optional[str] = None
+    description: Optional[str] = None,
+    create_help_buttons: bool = True
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
@@ -113,7 +114,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 3) Recursively process children
     children = root_node.get("children", [])
     for child in children:
-        child_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=[root_node.get("id")], cardinality_map=cardinality_map)
+        child_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=[root_node.get("id")], cardinality_map=cardinality_map, create_help_buttons=create_help_buttons)
         if child_item:
             composition_item["item"].append(child_item)
 
@@ -129,7 +130,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     #print(f"Cardinality map written to {card_file_path}")
 
 #def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, text_types) -> Optional[Dict[str, Any]]:
-def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, parent_ids: Optional[List[str]] = None, cardinality_map=OrderedDict()) -> Optional[Dict[str, Any]]:
+def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_version, parent_ids: Optional[List[str]] = None, cardinality_map=OrderedDict(), create_help_buttons: bool = True) -> Optional[Dict[str, Any]]:
 
     """
     Converts one node from the web template into a FHIR Questionnaire 'item' dict,
@@ -184,31 +185,32 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
     fhir_item["text"] = item_text
 
     # Add help-text as display item if localizedDescription exists
-    help_text = get_localized_description(node, preferred_lang)
-    if help_text:
-        help_item = {
-            "linkId": f"{flat_path}_helpText",
-            "type": "display",
-            "text": help_text,
-            "extension": [
-                {
-                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
-                    "valueCodeableConcept": {
-                        "coding": [
-                            {
-                                "system": "http://hl7.org/fhir/questionnaire-item-control",
-                                "code": "help",
-                                "display": "Help-Button"
-                            }
-                        ],
-                        "text": "Help-Button"
+    if create_help_buttons:
+        help_text = get_localized_description(node, preferred_lang)
+        if help_text:
+            help_item = {
+                "linkId": f"{flat_path}_helpText",
+                "type": "display",
+                "text": help_text,
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                        "valueCodeableConcept": {
+                            "coding": [
+                                {
+                                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                    "code": "help",
+                                    "display": "Help-Button"
+                                }
+                            ],
+                            "text": "Help-Button"
+                        }
                     }
-                }
-            ]
-        }
+                ]
+            }
 
-        # Add to the current item as a sub-item
-        fhir_item["item"] = [help_item]
+            # Add to the current item as a sub-item
+            fhir_item["item"] = [help_item]
 
     # Child items
     children = node.get("children", [])
@@ -218,7 +220,7 @@ def process_webtemplate_node(node: Dict[str, Any], preferred_lang: str, fhir_ver
         for child in children:
             #####
             #sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, text_types)
-            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=flat_path_parts, cardinality_map=cardinality_map)
+            sub_item = process_webtemplate_node(child, preferred_lang, fhir_version, parent_ids=flat_path_parts, cardinality_map=cardinality_map, create_help_buttons=create_help_buttons)
             #####
             if sub_item:
                 subitems.append(sub_item)
@@ -554,6 +556,11 @@ if __name__ == "__main__":
         required=False,
         help="Natural language description of the questionnaire (markdown)"
     )
+    parser.add_argument(
+        "--create_help_buttons",
+        required=False,
+        help="Create help text for each questionnaire item. To disable: False / false / F / f"
+    )
 
     args = parser.parse_args()
 
@@ -578,6 +585,9 @@ if __name__ == "__main__":
     # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.heart_sounds_murmurs.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
     # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.medication_order.v3.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
 
+    if args.create_help_buttons in ["False", "false", "F", "f"]:
+        create_help_buttons = False
+
     for lang in langs:
         #out_file = f"{args.output}_{lang}.json"
         # TODO: use name(+lang) as output if given
@@ -590,5 +600,6 @@ if __name__ == "__main__":
             fhir_version=args.fhir_version,
             name=args.name,
             publisher=args.publisher,
-            description=args.description
+            description=args.description,
+            create_help_buttons=create_help_buttons
         )
