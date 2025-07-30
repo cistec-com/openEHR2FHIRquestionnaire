@@ -169,9 +169,10 @@ def create_gradio_interface():
                             #languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
                             language_selector = gr.CheckboxGroup(
                                 label="Select languages",
-                                choices=["fr", "de"],
-                                value=["fr"],
-                                interactive=True
+                                choices=["en"],
+                                value=["en"],
+                                interactive=True,
+                                info="One questionnaire will be generated for each language."
                             )
 
                             fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
@@ -222,43 +223,55 @@ def create_gradio_interface():
                 gr.Markdown("""
                 This tool converts FHIR QuestionnaireResponses to openEHR FLAT Compositions.
                 Upload your FHIR QuestionnaireResponse and configure the conversion parameters below.
+                The questionnaireResponse needs to be derived from a FHIR Questionnaire generated from an openEHR web template.            
                 """)
 
-                fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
-                care_setting = gr.Dropdown(
-                    label="Care setting",
-                    choices=[
-                        ("225 - home", "225"),
-                        ("227 - emergency care", "227"),
-                        ("228 - primary medical care", "228"),
-                        ("229 - primary nursing care", "229"),
-                        ("230 - primary allied health care", "230"),
-                        ("231 - midwifery care", "231"),
-                        ("232 - secondary medical care", "232"),
-                        ("233 - secondary nursing care", "233"),
-                        ("234 - secondary allied health care", "234"),
-                        ("235 - complementary health care", "235"),
-                        ("236 - dental care", "236"),
-                        ("237 - nursing home care", "237"),
-                        ("802 - mental healthcare", "802"),
-                        ("238 - other care", "238"),
-                    ],
-                    value="238",  # default to "other care"
-                    interactive=True
-                )
+                with gr.Row():
+                    with gr.Column():
+                        fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
 
-                territory = gr.Dropdown(
-                    label="Territory (ISO 3166-1). Defaults to 'US' if not provided.",
-                    choices=iso_territories,
-                    interactive=True
-                )
-                convert_qr_btn = gr.Button("Convert to openEHR", variant="primary")
-                #comp_output = gr.Markdown(label="Result")
+                        care_setting = gr.Dropdown(
+                            label="Care Setting",
+                            choices=[
+                                ("225 - home", "225"),
+                                ("227 - emergency care", "227"),
+                                ("228 - primary medical care", "228"),
+                                ("229 - primary nursing care", "229"),
+                                ("230 - primary allied health care", "230"),
+                                ("231 - midwifery care", "231"),
+                                ("232 - secondary medical care", "232"),
+                                ("233 - secondary nursing care", "233"),
+                                ("234 - secondary allied health care", "234"),
+                                ("235 - complementary health care", "235"),
+                                ("236 - dental care", "236"),
+                                ("237 - nursing home care", "237"),
+                                ("802 - mental healthcare", "802"),
+                                ("238 - other care", "238"),
+                            ],
+                            value="238",
+                            interactive=True,
+                            info="Context setting for the composition (ctx/setting)"
+                        )
 
-                download_comps = gr.File(label="Download openEHR Compositions", file_count="multiple", type="binary")
-                
-                with gr.Accordion("Generated Compositions", open=True):
-                    comp_output = gr.Markdown()
+                        territory = gr.Dropdown(
+                            label="Territory (ISO 3166-1)",
+                            choices=iso_territories,
+                            value="US",
+                            interactive=True,
+                            info="Mandatory for a valid composition (ctx/territory)"
+                        )
+
+                        convert_qr_btn = gr.Button("Convert to openEHR", variant="primary")
+
+                    with gr.Column():
+                        download_comps = gr.File(
+                            label="Download openEHR Compositions",
+                            file_count="multiple",
+                            type="binary"
+                        )
+
+                        with gr.Accordion("Generated Compositions", open=True):
+                            comp_output = gr.Markdown()
 
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
