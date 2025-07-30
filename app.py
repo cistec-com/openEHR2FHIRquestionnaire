@@ -153,6 +153,9 @@ def create_gradio_interface():
         key=lambda x: x[0]
     )
     with gr.Blocks(title="FHIRquestionEHR") as demo:
+        gr.Markdown("""
+    🔗 This tool is open-source. View implementation details, contribute or open issues on the [GitHub Repository](https://github.com/cistec-com/openEHR2FHIRquestionnaire)
+        """)
         with gr.Tabs():
             with gr.TabItem("openEHR to FHIR Questionnaire Converter"):
                 gr.Markdown("# openEHR to FHIR Questionnaire Converter")
