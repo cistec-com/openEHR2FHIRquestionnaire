@@ -4,7 +4,7 @@ emoji: 📋
 colorFrom: blue
 colorTo: green
 sdk: gradio
-sdk_version: 4.19.2
+sdk_version: 4.44.1
 app_file: app_hf.py
 pinned: false
 license: mit
@@ -12,13 +12,18 @@ license: mit
 
 # openEHR2FHIRquestionnaire
 
-This script converts an openEHR web template (JSON) to one or more FHIR Questionnaire resources (JSON).
-You can generate multiple language variants, in case the respective translation is included in the web template. The FHIR version can be selected (currently supports R4 and R5).
+This project provides two tools for working with openEHR and FHIR resources:
+
+1. **openEHR Web Template → FHIR Questionnaire converter**
+2. **FHIR QuestionnaireResponse → openEHR FLAT Composition converter**
+
+You can use both tools via the CLI or an interactive web interface.
 
 [Try the converter in the Web Interface](https://huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire)
 
 ## Table of Contents
 
+* [Overview](#overview)
 * [Requirements](#requirements)
 * [Usage](#usage)
   + [Command Line Interface](#command-line-interface)
@@ -30,9 +35,28 @@ You can generate multiple language variants, in case the respective translation 
 * [Contribution](#contribution)
 * [Citation](#citation)
 
-## Requirements
+## Overview
 
-### CLI Version (Core Script)
+### 1. openEHR → FHIR Questionnaire
+
+Converts an **openEHR web template (JSON)** to one or more **FHIR Questionnaire** resources.  
+Features:
+- Multi-language output (based on available template translations)
+- Support for FHIR R4 and R5
+- Customizable name, publisher, and description fields
+
+---
+
+### 2. FHIR QuestionnaireResponse → openEHR Composition
+
+Converts a **FHIR QuestionnaireResponse** (or a Bundle of them) into one or more **openEHR FLAT Compositions**.  
+Features:
+- Creates valid openEHR FLAT compositions from QuestionnaireResponse
+- QuestionnaireResponse needs to be derived from a FHIR Questionnaire generated through openEHR → FHIR Questionnaire script
+
+---
+
+### Requirements CLI
 
 * Python 3.7+ (the core conversion script has no external dependencies)
 
@@ -40,26 +64,6 @@ You can generate multiple language variants, in case the respective translation 
 
 * Python 3.10+ (required by Gradio)
 * Dependencies are managed through pyproject.toml
-
-## Usage
-
-### Command Line Interface
-
-```bash
-python webtemplate_to_fhir_questionnaire_json.py \
-    --input <path_to_webtemplate_json> \
-    --output <base_output_file_name> \
-    --output_folder <relative_output_folder_path> \
-    --languages <comma_separated_langs> \
-    --fhir_version <R4|R5> \
-    --name <Optional name attribute for the FHIR Questionnaire> \
-    --publisher <Optional publisher attribute for the FHIR Questionnaire>
-    --text_types <from_annotations|...>
-```
-
-Note: Since the CLI script has no external dependencies, it can be run directly with Python without requiring uv.
-
-### Web Interface (Gradio)
 
 We've added a web interface using Gradio. To run it locally:
 
@@ -79,6 +83,26 @@ uv run app.py
 
 You can also try the hosted version of this tool on Hugging Face Spaces: [openEHR2FHIR Questionnaire Converter](https://huggingface.co/spaces/cistec/openEHR2FHIRquestionnaire)
 
+## Web Template to FHIR questionnaire
+
+### Command Line Interface
+
+```bash
+python webtemplate_to_fhir_questionnaire_json.py \
+    --input <path_to_webtemplate_json> \
+    --output <base_output_file_name> \
+    --output_folder <relative_output_folder_path> \
+    --languages <comma_separated_langs> \
+    --fhir_version <R4|R5> \
+    --name <Optional name attribute for the FHIR Questionnaire> \
+    --publisher <Optional publisher attribute for the FHIR Questionnaire>
+    --description <Natural language description of the questionnaire>
+    --create_help_buttons <True/False>
+```
+
+Note: Since the CLI script has no external dependencies, it can be run directly with Python without requiring uv.
+
+
 ### Examples
 
 ```bash
@@ -91,7 +115,8 @@ python webtemplate_to_fhir_questionnaire_json.py \
     --fhir_version R4 \
     --name QuestionnaireName \
     --publisher QuestionnairePublisher \
-    --text_types from_annotations
+    --description Questionnaire description \
+    --create_help_buttons False
 ```
 
 ```bash
@@ -115,7 +140,34 @@ python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtempl
 | --fhir_version  | FHIR version to use (either `R4` or `R5` ).                                    | No        | `R4` |                                                                                                                                                           |
 | --name          | The `name` attribute for the FHIR Questionnaire.                              | No        | Web Template name (without spaces) |                                                                                                                                                           |
 | --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter` |                                                                                                                                                           |
-| --text_types    | Distinction of `DV_TEXT` mapping to `text` and `string` FHIR types.           | No        | None                               | `from_annotations` : Annotated items in the Web Template with `key=text_type` and `value=<string \| text>` are converted to the respective FHIR item type. |
+| --description    | Natural language description of the questionnaire (markdown)                 | No        | Root Archetype description                               |                                      |
+| --create_help_buttons    | Create help text for each questionnaire item.                        | No        | True                              | Disable with ``False`                                     |
+
+
+## FHIR questionnaireResponse to FLAT Composition
+
+The input can be either a single questionnaireResponse or a collection of responses in a bundle. They have to originate from a questionnaire created through the converter, as the linkIds assigned to the elements in the questionnaire correspond to the path structure used in FLAT compositions.
+The generated FLAT Composition can be posted to both EHRbase and Better.
+
+### Command Line Interface
+
+```bash
+python fill_composition_from_response.py \
+    --input <path_to_questionnaireResponse/bundle> \
+    --output <base_output_file_name> \
+    --output_folder <relative_output_folder_path> \
+    --care_setting <openehr_care_setting> \
+    --territory <territory_code>
+```
+
+| Parameters      | Description                                                                   | Required? | Default                            | Comments                                                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------- | --------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --input         | Path to the Web Template JSON file to be converted into a FHIR Questionnaire. | Yes       | None                               |                                                                                                                                                           |
+| --output        | Base output file name for the generated FHIR Questionnaire.                   | No        | Input file base name.              | A timestamp (%Y%m%d\_%H%M) is prepended and the language code appended to the base name.                                                                  |
+| --output_folder | Path to the Web Template JSON file to be converted into a FHIR Questionnaire. | No        | `.` (current folder)               |                                                                                                                                                           |
+| --care_setting  | Care setting for the openEHR composition, 3-digit code or description         | No        | 228 / other care  | [openEHR Support Terminology - Setting](https://specifications.openehr.org/releases/TERM/latest/SupportTerminology.html#_setting)                                                                                                                                                          |
+| --territory     | 2-character code according to ISO 3166-1                                      | No        | Inferred using `locale.getdefaultlocale()` |                                                                                                                                                           |
+
 
 ## Data Type Mapping
 
