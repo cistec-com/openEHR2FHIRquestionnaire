@@ -4,7 +4,7 @@ emoji: 📋
 colorFrom: blue
 colorTo: green
 sdk: gradio
-sdk_version: 4.44.1
+sdk_version: 4.19.2
 app_file: app_hf.py
 pinned: false
 license: mit
@@ -141,7 +141,7 @@ python webtemplate_to_fhir_questionnaire_json.py --input samples/sample_webtempl
 | --name          | The `name` attribute for the FHIR Questionnaire.                              | No        | Web Template name (without spaces) |                                                                                                                                                           |
 | --publisher     | The `publisher` attribute for the FHIR Questionnaire.                         | No        | `converter` |                                                                                                                                                           |
 | --description    | Natural language description of the questionnaire (markdown)                 | No        | Root Archetype description                               |                                      |
-| --create_help_buttons    | Create help text for each questionnaire item.                        | No        | True                              | Disable with ``False`                                     |
+| --create_help_buttons | Create help text for each questionnaire item.                           | No        | True                              | Disable with `False`                                     |
 
 
 ## FHIR questionnaireResponse to FLAT Composition
@@ -160,6 +160,8 @@ python fill_composition_from_response.py \
     --territory <territory_code>
 ```
 
+### Parameters
+
 | Parameters      | Description                                                                   | Required? | Default                            | Comments                                                                                                                                                  |
 | --------------- | ----------------------------------------------------------------------------- | --------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | --input         | Path to the Web Template JSON file to be converted into a FHIR Questionnaire. | Yes       | None                               |                                                                                                                                                           |
@@ -175,7 +177,7 @@ python fill_composition_from_response.py \
 |--------------------------------------------|---------------------------|-------|
 | `COMPOSITION`, `CLUSTER`, `SECTION`, `EVENT_CONTEXT` | `group`                   | Used for hierarchical structuring. |
 | `DV_CODED_TEXT`                            | `choice` / `open-choice` (R4) or `coding` / `question` (R5) | Depends on `fhir_version` and whether the list is open. |
-| `DV_TEXT`                                  | `text` / `string`          | If `text_types="from_annotations"`, annotations are used for distinction. Defaults to using `text`. |
+| `DV_TEXT`                                  | `text` / `string`          |  |
 | `DV_QUANTITY`                              | `quantity`                 |  |
 | `DV_DATE_TIME`                             | `dateTime`                 |  |
 | `DV_DATE`                                  | `date`                     |  |
