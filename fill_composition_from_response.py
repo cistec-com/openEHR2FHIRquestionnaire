@@ -43,7 +43,7 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_terri
 def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None, ctx_author=None, template_id=None) -> Dict[str, Any]:
     composition = {}
 
-    if not template_id
+    if not template_id:
         questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
         metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
         template_id_composition = metadata_questionnaire.get("template_id", None)
