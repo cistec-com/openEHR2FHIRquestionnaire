@@ -65,9 +65,9 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     # 2) Build the FHIR Questionnaire
     questionnaire = {
         "resourceType": "Questionnaire",
-        #"id": template_id.replace("_", "-"),
+        "id": template_id.replace("_", "-"),
         "language": preferred_lang,
-        "url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{id}",
+        #"url": f"http://example.org/fhir/Questionnaire/{preferred_lang}-{id}",
         "version": "1.0.0",
         ### meta: Useful for dev/debug purposes. can store the exact timestamp or Git hash of the template or conversion logic.
         #"meta": {
