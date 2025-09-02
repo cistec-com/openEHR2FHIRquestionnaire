@@ -44,9 +44,13 @@ def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_set
     composition = {}
 
     if not template_id:
-        questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
-        metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
-        template_id_composition = metadata_questionnaire.get("template_id", None)
+        try:
+            questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
+            metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
+            template_id_composition = metadata_questionnaire.get("template_id", None)
+        except Exception as e:
+            print(f"Warning: could not fetch/extract template_id: {e}")
+            template_id_composition = "openehr.place_holder_template.v1"
     else:
         template_id_composition = template_id
     #questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
