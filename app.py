@@ -35,7 +35,8 @@ def convert_openehr_to_fhir(
     fhir_version="R4",
     name=None,
     publisher=None,
-    description=None
+    description=None,
+    create_help_buttons=False
 ):
     """
     Process the uploaded openEHR web template and return the converted FHIR Questionnaire(s)
@@ -70,7 +71,8 @@ def convert_openehr_to_fhir(
                 fhir_version=fhir_version,
                 name=name,
                 publisher=publisher,
-                description=description
+                description=description,
+                create_help_buttons=create_help_buttons
             )
 
             # Read the generated file
@@ -184,6 +186,9 @@ def create_gradio_interface():
                             name = gr.Textbox(label="Name (optional)", info="Name for this questionnaire (computer friendly)")
                             publisher = gr.Textbox(label="Publisher (optional)", info="The 'publisher' attribute for the FHIR Questionnaire")
 
+                        with gr.Row():
+                            help_box = gr.Checkbox(label="Create help buttons", info="Creates a help button extension for each question using the node descriptions", value=False)
+
                         # TODO: add more fields, implement in app & script
                         with gr.Row():
                             #status = gr.Radio(choices=["draft", "active", "retired", "unknown"], label="Status of the Questionnaire", value="draft", info="The 'status' attribute for the FHIR Questionnaire")
@@ -202,7 +207,7 @@ def create_gradio_interface():
 
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
-                    inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description],
+                    inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description, help_box],
                     outputs=[output, download_files]
                 )
 
