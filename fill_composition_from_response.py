@@ -7,7 +7,7 @@ import os
 import requests
 import locale
 
-def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_territory=None, template_id=None) -> List[Dict[str, Any]]:
+def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_territory=None) -> List[Dict[str, Any]]:
     """Processes a FHIR Bundle containing multiple QuestionnaireResponses."""
     compositions = []
 
@@ -30,7 +30,7 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_terri
             print(f"Processing QuestionnaireResponse: {resource.get('id', 'unknown')}")
             qr = resource
             questionnaire_ref = qr.get("questionnaire", "")
-            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting, ctx_territory=ctx_territory, ctx_author=practitioner_id, template_id=template_id)
+            composition = convert_fhir_to_openehr_flat(qr, ctx_setting=ctx_setting, ctx_territory=ctx_territory, ctx_author=practitioner_id)
             compositions.append({
                 "questionnaire": questionnaire_ref,
                 "composition": composition
@@ -40,19 +40,19 @@ def process_questionnaire_bundle(bundle_json: dict, ctx_setting="238", ctx_terri
 
     return compositions
 
-def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None, ctx_author=None, template_id=None) -> Dict[str, Any]:
+def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_setting=None, ctx_territory=None, ctx_author=None) -> Dict[str, Any]:
     composition = {}
 
-    if not template_id:
-        try:
-            questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
-            metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
-            template_id_composition = metadata_questionnaire.get("template_id", None)
-        except Exception as e:
-            print(f"Warning: could not fetch/extract template_id: {e}")
-            template_id_composition = "openehr.place_holder_template.v1"
-    else:
-        template_id_composition = template_id
+    #if not template_id:
+    #    try:
+    #        questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
+    #        metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
+    #        template_id_composition = metadata_questionnaire.get("template_id", None)
+    #    except Exception as e:
+    #        print(f"Warning: could not fetch/extract template_id: {e}")
+    #        template_id_composition = "openehr.place_holder_template.v1"
+    #else:
+    #    template_id_composition = template_id
     #questionnaire = fetch_questionnaire_from_server(questionnaire_response.get("questionnaire"))
     #metadata_questionnaire = extract_metadata_from_questionnaire(questionnaire)
 
@@ -69,7 +69,7 @@ def convert_fhir_to_openehr_flat(questionnaire_response: Dict[str, Any], ctx_set
 
     ctx_values = {
         #"ctx/template_id": metadata_questionnaire["template_id"],
-        "ctx/template_id": template_id_composition,
+        #"ctx/template_id": template_id_composition,
         "ctx/territory": ctx_territory,
         #"ctx/language": metadata_questionnaire["language"],
         "ctx/language": language_response,
@@ -178,16 +178,16 @@ def fetch_questionnaire_from_server(canonical_url: str) -> dict:
 
 def extract_metadata_from_questionnaire(questionnaire: dict):
     # Extract template ID from identifier
-    template_id = None
-    for idf in questionnaire.get("identifier", []):
-        if idf.get("system") == "http://example.org/openEHR/templates":
-            template_id = idf.get("value")
-            break
+    #template_id = None
+    #for idf in questionnaire.get("identifier", []):
+    #    if idf.get("system") == "http://example.org/openEHR/templates":
+    #        template_id = idf.get("value")
+    #        break
 
     language = questionnaire.get("language", "en")
 
     return {
-        "template_id": template_id,
+    #    "template_id": template_id,
         "language": language
     }
 
@@ -197,11 +197,11 @@ if __name__ == "__main__":
         description="Creates an openEHR composition from a questionnaireResponse."
     )
     parser.add_argument("--input", help="Path to the input questionnaireResponse JSON file")
-    parser.add_argument(
-        "--template_id",
-        required=False,
-        help="Template ID for the openEHR composition"
-    )
+    #parser.add_argument(
+    #    "--template_id",
+    #    required=False,
+    #    help="Template ID for the openEHR composition"
+    #)
     parser.add_argument(
         "--care_setting",
         required=False,
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     # Convert to openEHR composition
     fhir_response = json.load(open(args.input, 'r', encoding='utf-8'))
     #compositions = convert_fhir_to_openehr_flat(fhir_response)
-    compositions = process_questionnaire_bundle(fhir_response, ctx_setting=args.care_setting, ctx_territory=args.territory, template_id=args.template_id)
+    compositions = process_questionnaire_bundle(fhir_response, ctx_setting=args.care_setting, ctx_territory=args.territory)
 
     # Print the result
     print("openEHR Composition(s) (FLAT format):")

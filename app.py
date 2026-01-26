@@ -111,7 +111,7 @@ def load_sample():
     else:
         return None
     
-def convert_questionnaire_to_openehr_composition(fhir_file, ctx_setting, ctx_territory, template_id):
+def convert_questionnaire_to_openehr_composition(fhir_file, ctx_setting, ctx_territory):
     if fhir_file is None:
         return "Please upload a FHIR QuestionnaireResponse or Bundle JSON file.", []
 
@@ -119,7 +119,7 @@ def convert_questionnaire_to_openehr_composition(fhir_file, ctx_setting, ctx_ter
         with open(fhir_file.name, "r", encoding="utf-8") as f:
             fhir_json = json.load(f)
 
-        compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory, template_id=template_id)
+        compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
 
         output_text = ""
         download_files = []
@@ -238,7 +238,7 @@ def create_gradio_interface():
                     with gr.Column():
                         fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
 
-                        template_id = gr.Textbox(label="Template ID", info="openEHR Template ID. Needs to be specified if questionnaire is not posted on a server and has the correct URL assigned.")
+                        #template_id = gr.Textbox(label="Template ID", info="openEHR Template ID. Needs to be specified if questionnaire is not posted on a server and has the correct URL assigned.")
 
                         care_setting = gr.Dropdown(
                             label="Care Setting",
@@ -285,7 +285,7 @@ def create_gradio_interface():
 
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
-                    inputs=[fhir_input_file, care_setting, territory, template_id],
+                    inputs=[fhir_input_file, care_setting, territory],
                     outputs=[comp_output, download_comps]
                 )
 
