@@ -11,14 +11,12 @@ from webtemplate_to_fhir_questionnaire_json import convert_webtemplate_to_fhir_q
 from fill_composition_from_response import process_questionnaire_bundle
 import pycountry
 
-def extract_languages_from_template(file_obj, text_input):
+def extract_languages_from_template(file_obj):
     template = None
     try:
         if file_obj is not None:
             with open(file_obj.name, "r", encoding="utf-8") as f:
                 template = json.load(f)
-        elif text_input and text_input.strip():
-            template = json.loads(text_input)
         
         if template:
             langs = template.get("languages", [])
@@ -31,7 +29,6 @@ def extract_languages_from_template(file_obj, text_input):
 
 def convert_openehr_to_fhir(
     webtemplate_file,
-    webtemplate_text,
     languages=["en"],
     fhir_version="R4",
     name=None,
@@ -39,27 +36,17 @@ def convert_openehr_to_fhir(
     description=None,
     create_help_buttons=False
 ):
-    # Determine input source
-    input_path = None
-    if webtemplate_file is not None:
-        input_path = webtemplate_file.name
-    elif webtemplate_text and webtemplate_text.strip():
-        # Save pasted text to a temporary file so the converter can read it
-        temp_input = tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w', encoding='utf-8')
-        temp_input.write(webtemplate_text)
-        temp_input.close()
-        input_path = temp_input.name
-    
-    if not input_path:
-        return "Please upload a file or paste JSON content.", [], gr.update(visible=False), {}
+    if webtemplate_file is None:
+        return "Please upload an openEHR Web Template file.", [], gr.update(visible=False), None
 
+    input_path = webtemplate_file.name
     temp_dir = tempfile.mkdtemp()
     langs = languages
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    base_name = "webtemplate" if webtemplate_text else os.path.splitext(os.path.basename(input_path))[0]
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
 
     download_files = []
-    output_content_map = {} # Map for the JSON previewer
+    output_content_map = {} 
 
     for lang in langs:
         out_file = os.path.join(temp_dir, f"{timestamp}-{base_name}-{lang}.json")
@@ -81,7 +68,6 @@ def convert_openehr_to_fhir(
         except Exception as e:
             return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False), None
 
-    # Initial preview value
     first_key = list(output_content_map.keys())[0] if output_content_map else None
     
     return (
@@ -92,6 +78,8 @@ def convert_openehr_to_fhir(
     )
 
 def update_preview(selected_key, content_map):
+    if content_map is None:
+        return {}
     return content_map.get(selected_key, {})
 
 def load_sample():
@@ -151,36 +139,25 @@ def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setti
         return f"Error: {str(e)}", []
 
 def create_gradio_interface():
-    """Create and return the Gradio interface"""
     iso_territories = sorted(
         [(f"{country.name} ({country.alpha_2})", country.alpha_2)
         for country in pycountry.countries],
         key=lambda x: x[0]
     )
     with gr.Blocks(title="FHIRquestionEHR") as demo:
-        # State to store the dictionary of results for the previewer
         results_store = gr.State(None)
-        gr.Markdown("""
-    🔗 This tool is open-source. View implementation details, contribute or open issues on the [GitHub Repository](https://github.com/cistec-com/openEHR2FHIRquestionnaire)
-        """)
+        gr.Markdown("""🔗 This tool is open-source. View implementation details, contribute or open issues on the [GitHub Repository](https://github.com/cistec-com/openEHR2FHIRquestionnaire)""")
+        
         with gr.Tabs():
             with gr.TabItem("openEHR to FHIR Questionnaire Converter"):
                 gr.Markdown("# openEHR to FHIR Questionnaire Converter")
-                gr.Markdown("""
-                This tool converts openEHR web templates (JSON) to FHIR Questionnaires.
-                Upload your web template and configure the conversion parameters below.
-                """)
-
+                
                 with gr.Row():
                     with gr.Column():
-                        #webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
-                        with gr.Tabs():
-                            with gr.TabItem("Upload File"):
-                                webtemplate_file = gr.File(label="openEHR Web Template (JSON)")
-                            with gr.TabItem("Paste JSON"):
-                                webtemplate_text = gr.Textbox(label="Paste JSON Content", lines=10, placeholder='{"templateId": "..."}')
+                        # --- UPDATED: Reverted to single File component ---
+                        webtemplate_file = gr.File(label="Upload openEHR Web Template (JSON)")
+                        
                         with gr.Row():
-                            #languages = gr.Textbox(label="Languages (comma-separated)", value="en", info="Example: en,de,fr")
                             language_selector = gr.CheckboxGroup(
                                 label="Select languages",
                                 choices=["en"],
@@ -188,7 +165,6 @@ def create_gradio_interface():
                                 interactive=True,
                                 info="One questionnaire will be generated for each language."
                             )
-
                             fhir_version = gr.Radio(choices=["R4", "R5"], label="FHIR Version", value="R4")
 
                         with gr.Row():
@@ -198,10 +174,7 @@ def create_gradio_interface():
                         with gr.Row():
                             help_box = gr.Checkbox(label="Create help buttons", info="Creates a help button extension for each question using the node descriptions", value=False)
 
-                        # TODO: add more fields, implement in app & script
                         with gr.Row():
-                            #status = gr.Radio(choices=["draft", "active", "retired", "unknown"], label="Status of the Questionnaire", value="draft", info="The 'status' attribute for the FHIR Questionnaire")
-                            #title = gr.Textbox(label="Title (optional)", info="Name for this questionnaire (human friendly)")
                             description = gr.Textbox(label="Description (optional)", info="Natural language description of the questionnaire (markdown)")
 
                         with gr.Row():
@@ -210,28 +183,21 @@ def create_gradio_interface():
 
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
-                        
-                        #with gr.Accordion("Conversion Result", open=True):
-                        #    output = gr.Markdown()
                         with gr.Group():
                             file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
                             json_preview = gr.JSON(label="JSON Preview")
                         output_msg = gr.Markdown()
 
-                # --- Event Listeners ---
-                # Update languages when either file is uploaded OR text is pasted
-                webtemplate_file.upload(fn=extract_languages_from_template, inputs=[webtemplate_file, webtemplate_text], outputs=[language_selector])
-                webtemplate_text.change(fn=extract_languages_from_template, inputs=[webtemplate_file, webtemplate_text], outputs=[language_selector])
+                # --- Event Listeners Updated ---
+                webtemplate_file.upload(fn=extract_languages_from_template, inputs=[webtemplate_file], outputs=[language_selector])
 
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
-                    inputs=[webtemplate_file, webtemplate_text, language_selector, fhir_version, name, publisher, description, help_box],
+                    inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description, help_box],
                     outputs=[output_msg, download_files, file_selector, results_store]
                 )
 
-                # Update preview when dropdown changes
                 file_selector.change(fn=update_preview, inputs=[file_selector, results_store], outputs=json_preview)
-
                 load_sample_btn.click(fn=load_sample, outputs=webtemplate_file)
 
             with gr.TabItem("FHIR QuestionnaireResponse to openEHR FLAT Composition Converter"):
