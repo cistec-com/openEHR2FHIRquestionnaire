@@ -94,41 +94,31 @@ def load_sample():
         return None
     
 def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setting, ctx_territory):
-    if fhir_file is not None and fhir_text is None:
-        fhir_json = None
-        try:
-            with open(fhir_file, "r", encoding="utf-8") as f:
+    fhir_json = None
+    try:
+        # 1. Handle Input Source
+        if fhir_file is not None:
+            with open(fhir_file.name, "r", encoding="utf-8") as f:
                 fhir_json = json.load(f)
-        except Exception as e:
-            return f"Error reading FHIR file: {str(e)}", []
-    elif fhir_text is not None and fhir_file is None:
-        try:
+            base_filename = os.path.splitext(os.path.basename(fhir_file.name))[0]
+        elif fhir_text and fhir_text.strip():
             fhir_json = json.loads(fhir_text)
-        except json.JSONDecodeError as e:
-            return f"Error parsing FHIR JSON text: {str(e)}", []
-    else:
-        return "Please upload or paste a FHIR QuestionnaireResponse.", []
-
-    #try:
-    #    with open(fhir_file.name, "r", encoding="utf-8") as f:
-    #        fhir_json = json.load(f)
+            base_filename = "pasted_response"
+        else:
+            return "Please upload or paste a FHIR QuestionnaireResponse.", []
 
         compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
 
         output_text = ""
         download_files = []
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        base_name = os.path.splitext(os.path.basename(fhir_file.name))[0]
         temp_dir = tempfile.mkdtemp()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 
         for i, comp in enumerate(compositions):
-            comp_json = json.dumps(comp["composition"], indent=2)
-            filename = f"{timestamp}-{base_name}-{i+1}.json"
-            filepath = os.path.join(temp_dir, filename)
-
+            comp_json_str = json.dumps(comp["composition"], indent=2)
+            filepath = os.path.join(temp_dir, f"{timestamp}-{base_filename}-{i+1}.json")
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(comp_json)
-
+                f.write(comp_json_str)
             download_files.append(filepath)
 
             output_text += (
