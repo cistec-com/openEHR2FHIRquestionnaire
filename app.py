@@ -81,9 +81,13 @@ def update_preview(selected_file_path):
         return ""
     try:
         with open(selected_file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"error": "Could not read file"}
+            content = json.load(f)
+            # Convert dictionary to a pretty-printed string
+            json_str = json.dumps(content, indent=2)
+            # Wrap in Markdown code blocks for syntax highlighting and easy copying
+            return f"```json\n{json_str}\n```"
+    except Exception as e:
+        return f"### ❌ Error\nCould not read file: {str(e)}"
 
 def load_sample():
     """Load a sample openEHR web template for demonstration"""
@@ -177,7 +181,8 @@ def create_gradio_interface():
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
                         file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
-                        json_preview = gr.Markdown(label="JSON Preview")
+                        #json_preview = gr.Markdown(label="JSON Preview")
+                        json_preview = gr.Code(label="JSON Preview", language="json")
                         output_msg = gr.Markdown()
 
                 # --- Event Listeners Updated ---
@@ -191,8 +196,8 @@ def create_gradio_interface():
 
                 file_selector.change(
                     fn=update_preview,
-                     inputs=[file_selector],
-                     outputs=json_preview
+                    inputs=[file_selector],
+                    outputs=json_preview
                 )
 
                 load_sample_btn.click(fn=load_sample, outputs=webtemplate_file)
