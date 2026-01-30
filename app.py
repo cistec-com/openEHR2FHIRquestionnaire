@@ -366,5 +366,6 @@ if __name__ == "__main__":
     demo.launch(
         debug=args.debug,
         share=args.share,
-        server_port=args.port
+        server_port=args.port,
+        show_api=False
     )
