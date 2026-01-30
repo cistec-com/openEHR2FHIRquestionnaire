@@ -79,7 +79,7 @@ def convert_openehr_to_fhir(
                 output_content_map[f"{lang} Questionnaire"] = fhir_json
             download_files.append(out_file)
         except Exception as e:
-            return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False), {}
+            return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False), None
 
     # Initial preview value
     first_key = list(output_content_map.keys())[0] if output_content_map else None
@@ -159,7 +159,7 @@ def create_gradio_interface():
     )
     with gr.Blocks(title="FHIRquestionEHR") as demo:
         # State to store the dictionary of results for the previewer
-        results_store = gr.State({})
+        results_store = gr.State(None)
         gr.Markdown("""
     🔗 This tool is open-source. View implementation details, contribute or open issues on the [GitHub Repository](https://github.com/cistec-com/openEHR2FHIRquestionnaire)
         """)
