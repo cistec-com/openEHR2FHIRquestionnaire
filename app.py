@@ -73,14 +73,17 @@ def convert_openehr_to_fhir(
     return (
         "Conversion successful!", 
         download_files, 
-        gr.update(choices=list(output_content_map.keys()), value=first_key, visible=True),
-        output_content_map
+        gr.update(choices=download_files, value=download_files[0] if download_files else None, visible=True)
     )
 
-def update_preview(selected_key, content_map):
-    if content_map is None:
+def update_preview(selected_file_path):
+    if not selected_file_path:
         return {}
-    return content_map.get(selected_key, {})
+    try:
+        with open(selected_file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"error": "Could not read file"}
 
 def load_sample():
     """Load a sample openEHR web template for demonstration"""
@@ -145,7 +148,7 @@ def create_gradio_interface():
         key=lambda x: x[0]
     )
     with gr.Blocks(title="FHIRquestionEHR") as demo:
-        results_store = gr.State(None)
+        #results_store = gr.State(None)
         gr.Markdown("""🔗 This tool is open-source. View implementation details, contribute or open issues on the [GitHub Repository](https://github.com/cistec-com/openEHR2FHIRquestionnaire)""")
         
         with gr.Tabs():
@@ -194,17 +197,15 @@ def create_gradio_interface():
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
                     inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description, help_box],
-                    outputs=[output_msg, download_files, file_selector, results_store],
-                    show_api=False
+                    outputs=[output_msg, download_files, file_selector]
                 )
 
                 file_selector.change(
                     fn=update_preview,
-                     inputs=[file_selector, results_store],
-                     outputs=json_preview,
-                     show_api=False
+                     inputs=[file_selector],
+                     outputs=json_preview
                 )
-                
+
                 load_sample_btn.click(fn=load_sample, outputs=webtemplate_file)
 
             with gr.TabItem("FHIR QuestionnaireResponse to openEHR FLAT Composition Converter"):
