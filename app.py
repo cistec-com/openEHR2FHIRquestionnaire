@@ -261,7 +261,7 @@ def create_gradio_interface():
                         )
 
                         with gr.Accordion("Generated Compositions", open=True):
-                            comp_output = gr.Markdown()
+                            comp_output = gr.Code(language="json")
 
                 convert_qr_btn.click(
                     fn=convert_questionnaire_to_openehr_composition,
