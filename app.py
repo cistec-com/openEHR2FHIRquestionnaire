@@ -97,7 +97,7 @@ def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setti
     if fhir_file is not None and fhir_text is None:
         fhir_json = None
         try:
-            with open(fhir_file.name, "r", encoding="utf-8") as f:
+            with open(fhir_file, "r", encoding="utf-8") as f:
                 fhir_json = json.load(f)
         except Exception as e:
             return f"Error reading FHIR file: {str(e)}", []
@@ -109,9 +109,9 @@ def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setti
     else:
         return "Please upload or paste a FHIR QuestionnaireResponse.", []
 
-    try:
-        with open(fhir_file.name, "r", encoding="utf-8") as f:
-            fhir_json = json.load(f)
+    #try:
+    #    with open(fhir_file.name, "r", encoding="utf-8") as f:
+    #        fhir_json = json.load(f)
 
         compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
 
@@ -187,7 +187,7 @@ def create_gradio_interface():
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
                         file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
-                        json_preview = gr.Code(label="JSON Preview")
+                        json_preview = gr.Code(label="JSON Preview", language="json", lines=20)
                         output_msg = gr.Markdown()
 
                 # --- Event Listeners Updated ---
