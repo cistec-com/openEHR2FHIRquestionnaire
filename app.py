@@ -1,37 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# ============================================================
-# PATCH: Corrige bug do gradio_client TypeError bool
-# https://github.com/gradio-app/gradio/issues/11084
-# Este patch DEVE estar antes de qualquer import do gradio
-# ============================================================
-def _patch_gradio_client():
-    """
-    Corrige bug no gradio_client.utils.get_type() que causa:
-    TypeError: argument of type 'bool' is not iterable
-
-    O bug ocorre quando schema é um booleano em vez de dict.
-    """
-    try:
-        import gradio_client.utils as client_utils
-
-        _original_get_type = client_utils.get_type
-
-        def _patched_get_type(schema):
-            # Fix: schema pode ser bool em vez de dict
-            if isinstance(schema, bool):
-                return "bool"
-            return _original_get_type(schema)
-
-        client_utils.get_type = _patched_get_type
-        print("[PATCH] gradio_client.get_type corrigido")
-    except Exception as e:
-        print(f"[AVISO] Patch gradio_client falhou: {e}")
-
-_patch_gradio_client()
-# ============================================================
-
 import os
 import json
 import gradio as gr
