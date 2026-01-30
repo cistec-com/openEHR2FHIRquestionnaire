@@ -186,9 +186,8 @@ def create_gradio_interface():
 
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
-                        with gr.Group():
-                            file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
-                            json_preview = gr.JSON(label="JSON Preview")
+                        file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
+                        json_preview = gr.Code(label="JSON Preview", language="json")
                         output_msg = gr.Markdown()
 
                 # --- Event Listeners Updated ---
