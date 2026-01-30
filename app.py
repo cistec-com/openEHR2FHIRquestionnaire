@@ -177,7 +177,7 @@ def create_gradio_interface():
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
                         file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
-                        json_preview = gr.Code(label="JSON Preview", language="json", lines=20)
+                        json_preview = gr.Markdown(label="JSON Preview")
                         output_msg = gr.Markdown()
 
                 # --- Event Listeners Updated ---
@@ -208,10 +208,10 @@ def create_gradio_interface():
                 with gr.Row():
                     with gr.Column():
                         with gr.Tabs():
-                            with gr.TabItem("Upload FHIR QuestionnaireResponse"):
+                            with gr.TabItem("Upload FHIR Response or Bundle"):
                                 fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
-                            with gr.TabItem("Upload FHIR Bundle"):
-                                fhir_input_text = gr.Textbox(label="Paste FHIR QuestionnaireResponse (JSON)", lines=10)
+                            with gr.TabItem("Paste FHIR Response or Bundle"):
+                                fhir_input_text = gr.Textbox(label="Paste FHIR QuestionnaireResponse or Bundle (JSON)", lines=10)
 
                         #template_id = gr.Textbox(label="Template ID", info="openEHR Template ID. Needs to be specified if questionnaire is not posted on a server and has the correct URL assigned.")
 
