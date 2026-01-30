@@ -68,7 +68,7 @@ def convert_openehr_to_fhir(
         except Exception as e:
             return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False), None
 
-    first_key = list(output_content_map.keys())[0] if output_content_map else None
+    #first_key = list(output_content_map.keys())[0] if output_content_map else None
     
     return (
         "Conversion successful!", 
@@ -78,7 +78,7 @@ def convert_openehr_to_fhir(
 
 def update_preview(selected_file_path):
     if not selected_file_path:
-        return {}
+        return ""
     try:
         with open(selected_file_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -187,7 +187,7 @@ def create_gradio_interface():
                     with gr.Column():
                         download_files = gr.File(label="Download FHIR Questionnaires", file_count="multiple", type="binary")
                         file_selector = gr.Dropdown(label="Preview Generated File", choices=[], visible=False)
-                        json_preview = gr.Code(label="JSON Preview", language="json")
+                        json_preview = gr.Code(label="JSON Preview")
                         output_msg = gr.Markdown()
 
                 # --- Event Listeners Updated ---
