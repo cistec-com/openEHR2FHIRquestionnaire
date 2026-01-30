@@ -123,7 +123,7 @@ def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setti
 
             output_text += (
                 f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n"
-                f"```json\n{comp_json}\n```"
+                f"```json\n{comp_json_str}\n```"
                 f"\n</details>\n\n"
             )
 
