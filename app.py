@@ -194,10 +194,17 @@ def create_gradio_interface():
                 convert_btn.click(
                     fn=convert_openehr_to_fhir,
                     inputs=[webtemplate_file, language_selector, fhir_version, name, publisher, description, help_box],
-                    outputs=[output_msg, download_files, file_selector, results_store]
+                    outputs=[output_msg, download_files, file_selector, results_store],
+                    show_api=False
                 )
 
-                file_selector.change(fn=update_preview, inputs=[file_selector, results_store], outputs=json_preview)
+                file_selector.change(
+                    fn=update_preview,
+                     inputs=[file_selector, results_store],
+                     outputs=json_preview,
+                     show_api=False
+                )
+                
                 load_sample_btn.click(fn=load_sample, outputs=webtemplate_file)
 
             with gr.TabItem("FHIR QuestionnaireResponse to openEHR FLAT Composition Converter"):
