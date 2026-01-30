@@ -66,7 +66,7 @@ def convert_openehr_to_fhir(
                 output_content_map[f"{lang} Questionnaire"] = fhir_json
             download_files.append(out_file)
         except Exception as e:
-            return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False)
+            return f"Error processing {lang}: {str(e)}", [], gr.update(visible=False), None
 
     first_key = list(output_content_map.keys())[0] if output_content_map else None
     
@@ -78,11 +78,10 @@ def convert_openehr_to_fhir(
 
 def update_preview(selected_file_path):
     if not selected_file_path:
-        return ""
+        return {}
     try:
         with open(selected_file_path, "r", encoding="utf-8") as f:
-            content = json.load(f)
-            return json.dumps(content, indent=2)
+            return json.load(f)
     except Exception:
         return {"error": "Could not read file"}
 
@@ -95,35 +94,48 @@ def load_sample():
         return None
     
 def convert_questionnaire_to_openehr_composition(fhir_file, fhir_text, ctx_setting, ctx_territory):
-    fhir_json = None
-    try:
-        # 1. Handle Input Source
-        if fhir_file is not None:
+    if fhir_file is not None and fhir_text is None:
+        fhir_json = None
+        try:
             with open(fhir_file.name, "r", encoding="utf-8") as f:
                 fhir_json = json.load(f)
-            base_filename = os.path.splitext(os.path.basename(fhir_file.name))[0]
-        elif fhir_text and fhir_text.strip():
+        except Exception as e:
+            return f"Error reading FHIR file: {str(e)}", []
+    elif fhir_text is not None and fhir_file is None:
+        try:
             fhir_json = json.loads(fhir_text)
-            base_filename = "pasted_response"
-        else:
-            return "Please upload or paste a FHIR QuestionnaireResponse.", []
+        except json.JSONDecodeError as e:
+            return f"Error parsing FHIR JSON text: {str(e)}", []
+    else:
+        return "Please upload or paste a FHIR QuestionnaireResponse.", []
 
-        # 2. Process
+    try:
+        with open(fhir_file.name, "r", encoding="utf-8") as f:
+            fhir_json = json.load(f)
+
         compositions = process_questionnaire_bundle(fhir_json, ctx_setting=ctx_setting, ctx_territory=ctx_territory)
 
         output_text = ""
         download_files = []
-        temp_dir = tempfile.mkdtemp()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        base_name = os.path.splitext(os.path.basename(fhir_file.name))[0]
+        temp_dir = tempfile.mkdtemp()
 
         for i, comp in enumerate(compositions):
-            comp_json_str = json.dumps(comp["composition"], indent=2)
-            filepath = os.path.join(temp_dir, f"{timestamp}-{base_filename}-{i+1}.json")
+            comp_json = json.dumps(comp["composition"], indent=2)
+            filename = f"{timestamp}-{base_name}-{i+1}.json"
+            filepath = os.path.join(temp_dir, filename)
+
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(comp_json_str)
+                f.write(comp_json)
+
             download_files.append(filepath)
-            
-            output_text += f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n```json\n{comp_json_str}\n```\n</details>\n\n"
+
+            output_text += (
+                f"<details><summary><strong>{comp['questionnaire']}</strong></summary>\n\n"
+                f"```json\n{comp_json}\n```"
+                f"\n</details>\n\n"
+            )
 
         return output_text, download_files
     except Exception as e:
@@ -206,10 +218,10 @@ def create_gradio_interface():
                 with gr.Row():
                     with gr.Column():
                         with gr.Tabs():
-                            with gr.TabItem("Upload Response or Bundle"):
+                            with gr.TabItem("Upload FHIR QuestionnaireResponse"):
                                 fhir_input_file = gr.File(label="Upload FHIR QuestionnaireResponse or Bundle (JSON)")
-                            with gr.TabItem("Paste Response or Bundle"):
-                                fhir_input_text = gr.Textbox(label="Paste FHIR QuestionnaireResponse or Bundle (JSON)", lines=10)
+                            with gr.TabItem("Upload FHIR Bundle"):
+                                fhir_input_text = gr.Textbox(label="Paste FHIR QuestionnaireResponse (JSON)", lines=10)
 
                         #template_id = gr.Textbox(label="Template ID", info="openEHR Template ID. Needs to be specified if questionnaire is not posted on a server and has the correct URL assigned.")
 
