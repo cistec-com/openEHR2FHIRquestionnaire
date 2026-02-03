@@ -53,3 +53,4 @@ Thumbs.db
 tmp/
 temp/
 *~
+uv.lock
