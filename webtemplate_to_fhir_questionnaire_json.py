@@ -601,5 +601,5 @@ if __name__ == "__main__":
             name=args.name,
             publisher=args.publisher,
             description=args.description,
-            create_help_buttons=create_help_buttons
+            create_help_buttons=args.create_help_buttons
         )
