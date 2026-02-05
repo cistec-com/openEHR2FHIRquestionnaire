@@ -23,7 +23,7 @@ def convert_webtemplate_to_fhir_questionnaire_json(
     name: Optional[str] = None,
     publisher: Optional[str] = None,
     description: Optional[str] = None,
-    create_help_buttons: bool = True
+    create_help_buttons: bool = False
 ):
     """
     Loads an openEHR web template (JSON), converts it to a minimal FHIR Questionnaire (JSON)
@@ -549,7 +549,7 @@ if __name__ == "__main__":
         "--publisher",
         required=False,
         help="Optional 'publisher' attribute for the FHIR Questionnaire. "
-             "If not given, we default to 'converter'."
+             "If not given, defaults to 'converter'."
     )
     parser.add_argument(
         "--description",
@@ -558,8 +558,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--create_help_buttons",
+        action="store_true",
         required=False,
-        help="Create help text for each questionnaire item. To disable: False / false / F / f"
+        help="Create help text for each questionnaire item using the openEHR node description. By default no help buttons are created, add this flag to enable.",
     )
 
     args = parser.parse_args()
@@ -584,9 +585,6 @@ if __name__ == "__main__":
     # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.blood_pressure.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
     # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.heart_sounds_murmurs.v1.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
     # python webtemplate_to_fhir_questionnaire_json.py --input ../outputs/questionnaires/testing/cistec.openehr.medication_order.v3.json --languages en --fhir_version R4 --publisher "Command local" --output_folder ../outputs/questionnaires/testing
-
-    if args.create_help_buttons in ["False", "false", "F", "f"]:
-        create_help_buttons = False
 
     for lang in langs:
         #out_file = f"{args.output}_{lang}.json"
