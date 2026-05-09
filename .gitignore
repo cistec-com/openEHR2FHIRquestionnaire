@@ -53,3 +53,5 @@ Thumbs.db
 tmp/
 temp/
 *~
+uv.lock
+samples/Injury FHIR Questionnaire.json
